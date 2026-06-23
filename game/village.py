@@ -468,11 +468,21 @@ class Village:
         """
         Runs the farming logic
         """
-        # Auto-send assistant attacks if configured
-        try:
-            auto_send = self.get_config(section="farms", parameter="auto_send_assistant_attacks", default=False)
-        except Exception:
+        # Auto-send assistant attacks if configured (check farm_assistant first, then farms)
+        farms_conf = self.config.get("farms") if isinstance(self.config, dict) else None
+        assistant_conf = self.config.get("farm_assistant") if isinstance(self.config, dict) else None
+
+        if assistant_conf and "auto_send_assistant_attacks" in assistant_conf:
+            auto_send = assistant_conf.get("auto_send_assistant_attacks", False)
+            source = "farm_assistant"
+        elif farms_conf and "auto_send_assistant_attacks" in farms_conf:
+            auto_send = farms_conf.get("auto_send_assistant_attacks", False)
+            source = "farms"
+        else:
             auto_send = False
+            source = "default"
+
+        self.logger.debug("Auto-send assistant attacks config (%s) = %s", source, auto_send)
 
         if not auto_send:
             self.logger.debug("Auto-send assistant attacks disabled in config.")
