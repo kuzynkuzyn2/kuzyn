@@ -62,12 +62,14 @@ Domyślnie, gdy „uaktualnienie" jest włączone, skrypt będzie automatycznie 
 Liczba jednostek, które będzie próbować rekrutować w jednorazowo, gdy wejdziesz w fazę końcową gry (poziom koszar 25+) sugeruję ustawić to na coś w zakresie 500-1500. Utrzymanie go na niskim poziomie pozwoli na większą zmienność, co jest przydatne na początkach na świecie.
 Uwaga: rozmiar partii będzie zawsze maksymalną liczbą jednostek w jednej próbie, jeśli niewystarczające zasoby, skrypt obliczy najniższą możliwą liczbę jednostek.
 
-## Farmy
+## Auto Farm Assistant
 
-Ta sekcja będzie konfigurować opcje farmy dla wszystkich wsi, każda wieś będzie automatycznie atakować pobliskie wsie barbarzyńskie. Jeśli zwiadowcy są dostępni, wieś zostanie najpierw zbadana, jeśli nie zawiera wojsk i poziom muru wynosi zero, zostanie automatycznie dodana do listy farmy. 
-Jeśli zwiadowcy nie są dostępni lub nie są jeszcze zbadani, skrypt wyśle 1 farm run. Jeśli wrócą bez strat, powinni również zostać dodani do listy farmy.
+Ta sekcja zawiera ustawienia nowego `farm_assistant`, które zastępuje starą sekcję konfiguracyjną dotyczącą farmowania.
+Umożliwia skonfigurowanie automatycznych ataków wykonywanych przez Farm Assistant (widok gry kończący się na `&screen=am_farm`).
 
-Domyślnie skrypt będzie faworyzować ilość niż zasoby, ponieważ inni gracze mogą również atakować tę wioskę. Parametr "default_away_time" ustawia liczbę sekund, jakie bot czeka przed ponownym atakiem na tę wioskę. "full_loot_away_time" robi to samo, ale dla wiosek o wysokim priorytecie (zwrot pełnego łupu).
+Główne parametry dostępne w `farm_assistant`:
+
+Uwaga: automatyczne wysyłanie ataków zwiększa ryzyko wykrycia i bana — ustawiaj przerwy i opcje ostrożnie.
 
 ## Targ
 Funkcja targu automatycznie zarządza zasobami w Twojej wiosce. Jest to szczególnie ładnie, gdy konstruktor ma mało określonego zasobu i ma wiele innych.
@@ -94,7 +96,7 @@ To zmusi bota do zarezerwowania zasobów do tworzenia szlachty, tylko konstrukto
 Liczbę szlachty, którą można stworzyć w wiosce, można skonfigurować za pomocą parametru "snobs".
 
 **Farmy niestandardowe**
-Każda wieś może mieć listę niestandardowych farm w parametrze "additional_farms", identyfikatory wsi powinny być dodawane jako ciągi. 
+Ta sekcja zawiera ustawienia nowego `farm_assistant`, które zastępuje starą sekcję konfiguracyjną dotyczącą farmowania.
 *Uwaga: Ta opcja może być bardzo niebezpieczna! jeśli wioskę przejmiesz ty lub inny gracz, bot będzie nadal atakować, aż do śmierci wojsk lub wyłączenia wpisu w pliku pamięci wsi.*
 
 **Zbieranie**

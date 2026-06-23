@@ -58,7 +58,7 @@ def pre_process_string(key, value, village_id=None):
     if key in templates:
         return preprocess_select(key, value, templates[key], village_id)
 
-    if key == 'farms.farm_assistant_button':
+    if key == 'farm_assistant.farm_assistant_button':
         options = ['AUTO', 'A', 'B', 'C']
         output = '<select data-type-option="%s" data-type="select" class="form-control">' % key
         for option in options:

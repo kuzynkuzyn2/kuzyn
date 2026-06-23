@@ -65,27 +65,7 @@
     "support_others_max_villages": 2,
     "request_support_on_attack": false
   },
-  "farms": {
-    "farm": true,
-    "min_points": 0,
-    "max_points": 50,
-    "find_player_owned": false,
-    "search_radius": 100,
-    "default_away_time": 3600,
-    "full_loot_away_time": 1800,
-    "low_loot_away_time": 7200,
-    "max_farms": 25,
-    "attack_higher_points": false,
-    "force_scout_if_available": true,
-    "forced_peace_times": [],
-    "farm_scout_amount": 5,
-    "farm_assistant": false,
-    "farm_assistant_button": "AUTO",
-    "farm_assistant_wall_threshold": 1,
-    "farm_assistant_min_wall": 0,
-    "farm_assistant_max_wall": 1000,
-    "auto_send_assistant_attacks": false
-  },
+  
   "farm_assistant": {
     "enabled": false,
     "min_points": 0,

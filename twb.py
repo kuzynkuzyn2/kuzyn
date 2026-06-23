@@ -396,7 +396,7 @@ class TWB:
                         )
                     village_number += 1
 
-                if len(defense_states) and config["farms"]["farm"]:
+                if len(defense_states) and config.get("farm_assistant", {}).get("enabled", False):
                     for village in self.villages:
                         print("Synchronizowanie stanów ataku")
                         village.def_man.my_other_villages = defense_states

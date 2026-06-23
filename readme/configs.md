@@ -57,12 +57,13 @@ Domyślnie, gdy "upgrade" jest włączone, skrypt automatycznie zbada jednostki 
 Ilość jednostek, które będzie próbować zwerbować w jednym momencie, wchodząc w grę w fazie końcowej (poziom koszar 25+), sugeruję ustawienie tego na coś w zakresie 500-1500. Utrzymywanie go nisko pozwoli na większą zmienność, która jest przydatna na początku na świecie.
 Uwaga: rozmiar partii zawsze będzie maksymalną ilością jednostek w jednej próbie, jeśli niewystarczające zasoby, skrypt obliczy najniższą możliwą ilość jednostek.
 
-## Farmy
+## Auto Farm Assistant
 
-Ta sekcja będzie konfigurować opcje farmy dla wszystkich wsi, każda wieś automatycznie zacznie atakować pobliskie wsie barbarzyńskie. Jeśli szpiedzy są dostępni, wioska zostanie najpierw zwiadowana, jeśli nie zawiera żadnych wojsk, a poziom muru wynosi zero, zostanie automatycznie dodana do listy farmy. 
-Jeśli szpiedzy nie są dostępni lub nie są jeszcze badani, skrypt wyśle 1 jazdę farmy. Jeśli powróci bez strat, powinien również zostać dodany do listy farmy.
+Sekcja `farm_assistant` zastępuje starą konfigurację dotyczącą farmowania i zawiera ustawienia dla automatycznych ataków wykonywanych przez Farm Assistant (widok `&screen=am_farm`).
 
-Domyślnie skrypt będzie wybierać ilość nad zasobami, ponieważ inni gracze mogą również atakować tę wioskę. Parametr "default_away_time" ustawia ilość sekund, którą bot będzie czekać przed ponownym atakiem na tę wioskę. "full_loot_away_time" robi to samo, ale dla wsi o wysokim priorytecie (pełny zwrot łupu).
+Najważniejsze ustawienia są opisane w `config.example.json` i obejmują: `enabled`, progi punktów, promień wyszukiwania, czasy oczekiwania między atakami, `max_farms`, `farm_scout_amount`, przycisk asystenta (`farm_assistant_button`), progi murów oraz `auto_send_assistant_attacks`.
+
+Uwaga: automatyczne wysyłanie ataków może zwiększyć ryzyko bana — używaj ostrożnie.
 
 ## Targ
 Funkcja targu automatycznie zarządza zasobami w twojej wiosce. To jest szczególnie miłe, ilekroć builder jest mały na pewny zasób i ma wiele innych.
