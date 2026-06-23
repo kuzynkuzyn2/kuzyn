@@ -11,7 +11,9 @@
                 {% for village in data.config.get('villages', {}) %}
 				<li class="list-group-item {% if current_select == village %} active {% endif %} ">
 					<a class="list-group-item-action" href="/village?id={{ village }}">
-						{% if village in data.bot and data.bot[village].public %}
+						{% if village in data.bot and data.bot[village].name %}
+							{{ data.bot[village].name }} {% if data.bot[village].public and data.bot[village].public.location %}({{ data.bot[village].public.location }}){% endif %}
+						{% elif village in data.bot and data.bot[village].public %}
 							{{ data.bot[village].public.name }} ({{ data.bot[village].public.location }})
 						{% elif village in data.villages %}
 							{{ data.villages[village].name }} ({{ data.villages[village].location }})
