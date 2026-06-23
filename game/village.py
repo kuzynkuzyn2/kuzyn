@@ -444,7 +444,11 @@ class Village:
         self.attack.farm_high_prio_wait = _get_assistant("full_loot_away_time", 1800)
         self.attack.farm_low_prio_wait = _get_assistant("low_loot_away_time", 7200)
         self.attack.scout_farm_amount = _get_assistant("farm_scout_amount", 5)
-        self.attack.farm_assistant = assistant_conf.get("enabled", False) if assistant_conf else False
+        # enable farm assistant per-village when either explicitly enabled
+        # or when auto-send is configured globally for convenience
+        self.attack.farm_assistant = False
+        if assistant_conf:
+            self.attack.farm_assistant = assistant_conf.get("enabled", False) or assistant_conf.get("auto_send_assistant_attacks", False)
 
         self.attack.farm_assistant_button = _get_assistant("farm_assistant_button", "AUTO")
         self.attack.farm_assistant_auto_wall_threshold = _get_assistant("farm_assistant_wall_threshold", 1)
