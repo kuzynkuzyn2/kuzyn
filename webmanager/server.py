@@ -216,6 +216,49 @@ def get_map():
     return render_template('map.html', data=sync_data, map=map_data)
 
 
+@app.route('/map/refresh', methods=['POST', 'GET'])
+def refresh_map():
+    session = DataReader.get_session()
+    if not session or 'cookies' not in session:
+        return jsonify({"error": "No session data. Save session first."}), 400
+    try:
+        from core.request import WebWrapper
+        from game.map import Map as GameMap
+    except ImportError:
+        return jsonify({"error": "Required modules not available"}), 500
+
+    wrapper = WebWrapper(session.get('endpoint', None), server=session.get('server', None), endpoint=session.get('endpoint', None))
+    try:
+        wrapper.web.cookies.update(session.get('cookies', {}))
+    except Exception:
+        pass
+
+    # Try to refresh for managed villages first, fallback to config
+    managed = DataReader.cache_grab("managed")
+    refreshed = []
+    if managed:
+        for vid in managed:
+            try:
+                m = GameMap(wrapper=wrapper, village_id=vid)
+                m.get_map()
+                refreshed.append(vid)
+            except Exception:
+                continue
+    else:
+        config = DataReader.config_grab()
+        for vid in config.get('villages', []):
+            try:
+                m = GameMap(wrapper=wrapper, village_id=vid)
+                m.get_map()
+                refreshed.append(vid)
+            except Exception:
+                continue
+
+    if not refreshed:
+        return jsonify({"error": "No villages refreshed (no managed/config villages or fetch failed)."}), 500
+    return jsonify({"status": "ok", "refreshed": refreshed})
+
+
 @app.route('/villages', methods=['GET'])
 def get_village_overview():
     return render_template('villages.html', data=sync())

@@ -38,6 +38,7 @@
 </style>
 <div class="row">
     <div class="col-lg-10">
+        <div style="margin-bottom:10px"><button id="refresh_map" class="btn btn-sm btn-primary">Odśwież mapę</button></div>
         <table id="grid"></table>
     </div>
     <div class="col-lg-2">
@@ -100,6 +101,16 @@
     } else {
         generateGrid(Object.keys(map_data.grid).length, Object.keys(map_data.grid).length, map_data);
     }
+
+    $('#refresh_map').on('click', function() {
+        $(this).prop('disabled', true).text('Odświeżanie...');
+        $.get('/map/refresh').done(function(res){
+            location.reload();
+        }).fail(function(err){
+            alert('Błąd odświeżania mapy: ' + (err.responseJSON && err.responseJSON.error ? err.responseJSON.error : 'nieznany'));
+            $('#refresh_map').prop('disabled', false).text('Odśwież mapę');
+        });
+    });
 </script>
 {% endblock %}
  
