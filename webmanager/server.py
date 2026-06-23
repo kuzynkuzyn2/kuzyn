@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import traceback
 sys.path.insert(0, "../")
 
 from flask import Flask, jsonify, send_from_directory, request, render_template
@@ -224,8 +225,9 @@ def refresh_map():
     try:
         from core.request import WebWrapper
         from game.map import Map as GameMap
-    except ImportError:
-        return jsonify({"error": "Required modules not available"}), 500
+    except Exception as e:
+        tb = traceback.format_exc()
+        return jsonify({"error": "Required modules not available", "detail": str(e), "traceback": tb}), 500
 
     wrapper = WebWrapper(session.get('endpoint', None), server=session.get('server', None), endpoint=session.get('endpoint', None))
     try:
