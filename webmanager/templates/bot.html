@@ -74,7 +74,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <h5>Bot</h5>
-                        <div id="bot-console" style="height:300px; overflow:auto; background:#000; color:#0f0; padding:10px; font-family:monospace; white-space:pre-wrap;"></div>
+                        <div id="bot-console" style="height:300px; overflow:auto; background:#000; color:#d4af37; padding:10px; font-family:monospace; white-space:pre-wrap;"></div>
                         <div style="margin-top:8px; display:flex; gap:8px;">
                             <input id="bot-cmd-input" class="form-control" placeholder="Wpisz komendę do bota (np. debug)" />
                             <button id="bot-cmd-send" class="btn btn-sm btn-gold">Wyślij</button>
@@ -82,7 +82,7 @@
                     </div>
                     <div class="col-md-6">
                         <h5>HTTP (access)</h5>
-                        <div id="http-console" style="height:360px; overflow:auto; background:#111; color:#ffb; padding:10px; font-family:monospace; white-space:pre-wrap;"></div>
+                        <div id="http-console" style="height:360px; overflow:auto; background:#111; color:#d4af37; padding:10px; font-family:monospace; white-space:pre-wrap;"></div>
                     </div>
                 </div>
             </div>
@@ -94,18 +94,24 @@
 {% block styles %}
 <style>
 .log-line{padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.03); font-family:monospace; font-size:13px}
-.log-ts{color:#9aa4ad; margin-right:6px}
+.log-ts{color:#9aa4ad; margin-right:6px; opacity:0.8}
 .log-logger{color:#7fb0ff; margin-right:6px}
 .log-level{font-weight:700; padding:2px 6px; border-radius:4px; margin-right:6px; font-size:11px}
 .level-info .log-level{background:#e6f4ea; color:#0b6b24}
-.level-warn .log-level{background:#fff4e5; color:#7a4f00}
+.level-warn .log-level{background:#fdecea; color:#8a1f1f}
 .level-error .log-level{background:#fdecea; color:#8a1f1f}
 .level-debug .log-level{background:#eef3ff; color:#1f4fa8}
-.log-msg{color:#e6eef6}
+.log-msg{color:inherit}
+.line-default{color:#d4af37}
+.line-info{color:#73b22f}
+.line-get{color:#5fb3ff}
+.line-request{color:#ff9f1c}
+.line-feature{color:#ffd966}
+.line-warning{color:#f87171}
+.line-error{color:#f87171}
 #bot-console{background:#081018}
 #http-console{background:#061014}
-#bot-console .log-line{color:#c8f7c8}
-#http-console .log-line{color:#f7f1c8}
+#bot-console .log-line, #http-console .log-line {color:inherit}
 .card .card-body h5{margin-top:0;margin-bottom:8px}
 </style>
 {% endblock %}
@@ -129,7 +135,7 @@ function formatLogLine(line, kind){
     if(!line) return '';
     line = stripAnsi(line);
     // Try to parse: timestamp - logger - LEVEL - message
-    var m = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?) - ([^ ]+) - ([A-Z]+) - (.*)$/);
+    var m = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?) - (.*?) - ([A-Z]+) - (.*)$/);
     var ts = '', logger = '', level = '', msg = line;
     if(m){ ts = m[1]; logger = m[2]; level = m[3]; msg = m[4]; }
     // Fallback: try other separator ' - '
@@ -139,15 +145,41 @@ function formatLogLine(line, kind){
     }
 
     var levelClass = 'level-info';
+    var lineClass = 'line-default';
     if(level){
         var l = level.toUpperCase();
-        if(l.indexOf('ERROR')>=0 || l.indexOf('CRITICAL')>=0) levelClass = 'level-error';
-        else if(l.indexOf('WARN')>=0) levelClass = 'level-warn';
-        else if(l.indexOf('DEBUG')>=0) levelClass = 'level-debug';
-        else levelClass = 'level-info';
+        if(l.indexOf('ERROR')>=0 || l.indexOf('CRITICAL')>=0){
+            levelClass = 'level-error';
+            lineClass = 'line-error';
+        } else if(l.indexOf('WARN')>=0){
+            levelClass = 'level-warn';
+            lineClass = 'line-warning';
+        } else if(l.indexOf('INFO')>=0){
+            levelClass = 'level-info';
+            lineClass = 'line-info';
+        } else if(l.indexOf('DEBUG')>=0){
+            levelClass = 'level-debug';
+            lineClass = 'line-default';
+        } else {
+            levelClass = 'level-info';
+            lineClass = 'line-default';
+        }
     }
 
-    var html = '<div class="log-line '+levelClass+'">';
+    var normalized = (logger + ' ' + msg).toLowerCase();
+    var isRequestLogger = /żądania|request|requests|http/.test(logger.toLowerCase());
+    var isHttpMethod = /(^|\s)(get|post|put|delete|head|options)\b/.test(msg.toLowerCase());
+    var isFeatureLog = /(attack|attacks|farm|farma|assistant|mened|defence|defend|hunter|building|recruitment|resource|reports|snob)/.test(normalized);
+
+    if(isRequestLogger || /żądania/.test(msg.toLowerCase())){
+        lineClass = 'line-request';
+    } else if(isHttpMethod){
+        lineClass = 'line-http';
+    } else if(isFeatureLog){
+        lineClass = 'line-feature';
+    }
+
+    var html = '<div class="log-line '+levelClass+' '+lineClass+'">';
     if(ts) html += '<span class="log-ts">'+escapeHtml(ts)+'</span> ';
     if(logger) html += '<span class="log-logger">'+escapeHtml(logger)+'</span> ';
     if(level) html += '<span class="log-level '+levelClass+'">'+escapeHtml(level)+'</span> ';
