@@ -318,9 +318,13 @@ class Extractor:
                         usable_link = f"game.php?village={cur_vid}&screen=place&target={vid}"
                     else:
                         usable_link = f"game.php?village=0&screen=place&target={vid}"
-                # Note: self_placeholder will be replaced later by AttackManager context if needed
+                # store raw attributes so caller can choose how to trigger the click
                 target = targets.setdefault(str(vid), {'wall': wall, 'links': {}})
-                target['links'][action.upper()] = usable_link
+                target['links'][action.upper()] = {
+                    'href': href,
+                    'onclick': onclick,
+                    'usable': usable_link,
+                }
 
                 # try to detect safety/report status within the row
                 # default to safe=True unless we detect hostile markers

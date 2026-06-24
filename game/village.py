@@ -480,11 +480,15 @@ class Village:
         # ensure farm assistant targets are loaded
         self.attack.ensure_farm_assistant_targets()
 
-        # get a fresh local map (needed for coordinates)
+        # get a fresh local map (needed for coordinates) only if not using farm_assistant
         try:
-            m = Map(wrapper=self.wrapper, village_id=self.village_id)
-            m.get_map()
-            self.attack.map = m
+            if not self.attack.farm_assistant:
+                m = Map(wrapper=self.wrapper, village_id=self.village_id)
+                m.get_map()
+                self.attack.map = m
+            else:
+                # when using farm_assistant we trigger attacks directly from am_farm
+                self.logger.debug("Skipping map fetch because farm_assistant is enabled for village %s", self.village_id)
         except Exception:
             self.logger.debug("Unable to fetch map for assistant attacks")
 

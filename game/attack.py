@@ -494,22 +494,44 @@ class AttackManager:
             button = "A" if wall >= self.farm_assistant_auto_wall_threshold else "B"
         if button in target["links"]:
             self.logger.debug("Using farm assistant link for %s button %s -> %s", vid, button, target['links'][button])
-            return target["links"][button]
+            return button, target["links"][button]
         for fallback in ["A", "B", "C"]:
             if fallback in target["links"]:
                 self.logger.debug("Using farm assistant fallback link for %s button %s -> %s", vid, fallback, target['links'][fallback])
-                return target["links"][fallback]
+                return fallback, target["links"][fallback]
         return None
 
     def attack_with_assistant(self, vid, troops=None):
-        link = self.get_farm_assistant_link(vid)
-        if not link:
+        res = self.get_farm_assistant_link(vid)
+        if not res:
             self.logger.debug(
                 "No farm assistant link for %s with button %s", vid, self.farm_assistant_button
             )
             return False
-        pre_attack = self.wrapper.get_url(link)
-        self.logger.debug("Fetched assistant pre-attack page for %s via %s", vid, link)
+        button, link = res
+        # If the original href points to am_farm or we have an onclick JS handler, try to trigger the action on am_farm
+        href = link.get('href') if isinstance(link, dict) else None
+        onclick = link.get('onclick') if isinstance(link, dict) else None
+
+        try:
+            if href and 'screen=am_farm' in href:
+                # Direct farm assistant link; request it and assume success if 200
+                resp = self.wrapper.get_url(href)
+                if resp:
+                    return True
+            # if onclick contains sendUnits or similar, attempt to call am_farm with farm_icon param
+            if onclick and re.search(r'sendUnits', onclick):
+                farm_click = f"game.php?village={self.village_id}&screen=am_farm&farm_icon_{button.lower()}={vid}"
+                resp = self.wrapper.get_url(farm_click)
+                if resp:
+                    return True
+        except Exception:
+            pass
+
+        # fallback: use the usable place link (old behaviour)
+        usable = link.get('usable') if isinstance(link, dict) else link
+        pre_attack = self.wrapper.get_url(usable)
+        self.logger.debug("Fetched assistant pre-attack page for %s via %s", vid, usable)
         if not pre_attack:
             return False
         pre_data = {}
