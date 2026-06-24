@@ -5,6 +5,8 @@ import subprocess
 import sys
 
 import psutil
+import threading
+import logging
 
 
 class DataReader:
@@ -238,6 +240,7 @@ class BotManager:
 
     def __init__(self):
         self.proc = None
+        self._reader_thread = None
 
     def is_running(self):
         return bool(self.proc and self.proc.poll() is None)
@@ -249,7 +252,22 @@ class BotManager:
         try:
             wd = os.path.join(os.path.dirname(__file__), "..")
             python_exe = sys.executable if hasattr(sys, 'executable') else 'python'
-            self.proc = subprocess.Popen([python_exe, "twb.py"], cwd=wd, shell=False)
+            # Capture stdout/stderr so we can show logs in web UI
+            self.proc = subprocess.Popen([python_exe, "twb.py"], cwd=wd, shell=False,
+                                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            # start a background thread to read subprocess output
+            def _reader():
+                logger = logging.getLogger("BotSubprocess")
+                try:
+                    for line in iter(self.proc.stdout.readline, ''):
+                        if not line:
+                            break
+                        logger.info(line.rstrip('\n'))
+                except Exception:
+                    logger.exception('Error reading bot subprocess output')
+
+            self._reader_thread = threading.Thread(target=_reader, daemon=True)
+            self._reader_thread.start()
             print("Bot uruchomiony pomyślnie jako proces")
         except Exception as e:
             print("Nie udało się uruchomić bota:", e)
@@ -272,3 +290,4 @@ class BotManager:
             print("Błąd podczas zatrzymywania bota:", e)
         finally:
             self.proc = None
+            self._reader_thread = None
