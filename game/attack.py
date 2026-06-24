@@ -589,9 +589,43 @@ class AttackManager:
         for url in attempts:
             try:
                 resp = self.wrapper.get_url(url)
-                if resp and '<div class="error_box">' not in (resp.text if hasattr(resp, 'text') else ''):
-                    self.logger.debug("Triggered farm assistant URL %s for %s", url, vid)
-                    return True
+                if not resp:
+                    continue
+                text = resp.text if hasattr(resp, 'text') else ''
+                ctype = ''
+                try:
+                    ctype = resp.headers.get('Content-Type', '')
+                except Exception:
+                    pass
+                # Prefer JSON/ajax responses: accept only when response is JSON or URL explicitly asks for json
+                is_json = False
+                if 'application/json' in ctype or text.strip().startswith('{') or text.strip().startswith('['):
+                    is_json = True
+                if is_json or 'json=1' in url or 'ajaxaction' in url:
+                    try:
+                        j = resp.json()
+                        if isinstance(j, dict):
+                            if j.get('error'):
+                                continue
+                            if 'success' in j and bool(j.get('success')):
+                                self.logger.debug("Triggered farm assistant URL %s for %s (json success)", url, vid)
+                                return True
+                            if 'data' in j:
+                                self.logger.debug("Triggered farm assistant URL %s for %s (json data)", url, vid)
+                                return True
+                        # otherwise, if text contains ok-like markers
+                        if 'ok' in text.lower() or 'success' in text.lower():
+                            self.logger.debug("Triggered farm assistant URL %s for %s (text ok)", url, vid)
+                            return True
+                    except Exception:
+                        # fallback: if not parseable JSON but looks like success text
+                        if 'ok' in text.lower() or 'success' in text.lower():
+                            self.logger.debug("Triggered farm assistant URL %s for %s (text ok fallback)", url, vid)
+                            return True
+                else:
+                    # not an ajax/json endpoint — don't assume a GET of a page equals sending troops
+                    self.logger.debug("Ignored non-AJAX GET %s for %s (not treated as send)", url, vid)
+                    continue
             except Exception:
                 continue
 
