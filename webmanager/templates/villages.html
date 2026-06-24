@@ -74,7 +74,15 @@
 {% block scripts %}
 <script>
 function refreshVillages() {
-    location.reload();
+    // Only reload the page if no village data can be found from the API.
+    $.getJSON('/api/get', function(data){
+        var hasBotData = data && data.bot && Object.keys(data.bot).length > 0;
+        var hasVillageData = data && data.villages && Object.keys(data.villages).length > 0;
+        if(!hasBotData && !hasVillageData) {
+            // nothing to display — reload to try to fetch fresh data
+            location.reload();
+        }
+    });
 }
 
 $(function(){

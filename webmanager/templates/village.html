@@ -102,7 +102,14 @@
 
 	function autoRefreshConfig() {
 	    if (Object.keys(set_values).length === 0) {
-	        location.reload();
+	        // Only reload if API reports no data to display
+	        $.getJSON('/api/get', function(data){
+	            var hasBotData = data && data.bot && Object.keys(data.bot).length > 0;
+	            var hasVillageData = data && data.villages && Object.keys(data.villages).length > 0;
+	            if(!hasBotData && !hasVillageData) {
+	                location.reload();
+	            }
+	        });
 	    }
 	}
 
