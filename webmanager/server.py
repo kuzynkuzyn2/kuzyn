@@ -8,11 +8,28 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from flask import Flask, jsonify, send_from_directory, request, render_template
 import logging
+import importlib.util
 
+# Try package import first, fallback to loading the module file directly
 try:
     from webmanager.logbuffer import log_handler, get_logs as lb_get_logs
-except ImportError:
-    from logbuffer import log_handler, get_logs as lb_get_logs
+except Exception:
+    try:
+        # load from same directory as this file
+        lb_path = os.path.join(os.path.dirname(__file__), 'logbuffer.py')
+        spec = importlib.util.spec_from_file_location('webmanager.logbuffer', lb_path)
+        lb_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(lb_mod)
+        log_handler = getattr(lb_mod, 'log_handler')
+        lb_get_logs = getattr(lb_mod, 'get_logs')
+    except Exception:
+        # final fallback: no-op implementations
+        class _Dummy:
+            def get_logs(self, n=0):
+                return []
+
+        log_handler = logging.NullHandler()
+        lb_get_logs = _Dummy().get_logs
 
 try:
     from webmanager.helpfile import help_file, buildings
