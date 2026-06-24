@@ -4,7 +4,7 @@
 <div class="row">
     <div class="col-lg-12">
         <div class="card">
-          <div class="card-header panel-decor">Wsie - przegląd</div>
+          <div class="card-header panel-decor">Przegląd wiosek</div>
           <div class="card-body">
         <table class="table table-striped">
             <thead>
@@ -33,7 +33,7 @@
                         <td>{% if (village_id|string) in data.config.get('villages', {}) %} {{ data.config.get('villages', {})[village_id|string].units }} {% else %} Brak konfiguracji {% endif %}</td>
                         <td>
                             <a href="map?center={{ village_id }}" class="btn btn-success btn-sm">Mapa</a>
-                            <a href="village?id={{ village_id }}" class="btn btn-success btn-sm">Konfiguracja</a>
+                            <a href="village?id={{ village_id }}" class="btn btn-success btn-sm">Ustawienia</a>
                         </td>
                     </tr>
                     <tr class="table-secondary">
@@ -41,7 +41,7 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="gold-panel units-panel p-3">
-                                        <h5 class="mb-2">Jednostki</h5>
+                                        <h5 class="mb-2">Wojsko</h5>
                                         <div class="units-list">
                                             {% if vill.troops %}
                                                 {% for unit, count in vill.troops.items() %}
@@ -55,7 +55,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="gold-panel queue-panel p-3">
-                                        <h5 class="mb-2">Kolejka budynkowa</h5>
+                                        <h5 class="mb-2">Budynki w kolejce</h5>
                                         <div>{{ vill.building_queue | default([]) | length }}</div>
                                     </div>
                                 </div>
