@@ -56,8 +56,29 @@ try:
     werkzeug_logger.addHandler(http_log_handler)
     werkzeug_logger.setLevel(logging.INFO)
     werkzeug_logger.propagate = False
+
+    # Explicit GET request logger routed into bot console logs
+    get_request_logger = logging.getLogger('webmanager.http_get')
+    get_request_logger.addHandler(bot_log_handler)
+    get_request_logger.setLevel(logging.INFO)
+    get_request_logger.propagate = False
 except Exception:
     pass
+
+
+@app.before_request
+def log_http_request():
+    if request.method != 'GET':
+        return
+
+    path = request.path
+    if path.startswith('/static/') or path == '/logs' or path == '/app/js':
+        return
+
+    qs = request.query_string.decode('utf-8') if request.query_string else ''
+    if qs:
+        path = '%s?%s' % (path, qs)
+    logging.getLogger('webmanager.http_get').info('GET %s', path)
 
 
 def pre_process_bool(key, value, village_id=None):
