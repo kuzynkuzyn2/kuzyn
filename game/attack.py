@@ -884,14 +884,14 @@ class AttackManager:
 
         button, link = res
         target = self.farm_assistant_targets.get(str(vid)) if hasattr(self, 'farm_assistant_targets') else None
-        buttons = []
-        if not (getattr(self, 'farm_assistant_rules', None) or []):
-            if isinstance(target, dict):
-                buttons = [b for b in ['A', 'B', 'C'] if b in target.get('links', {}) and not target['links'][b].get('disabled')]
-            else:
-                buttons = [button]
+        if isinstance(target, dict):
+            enabled_buttons = [b for b in ['A', 'B', 'C'] if b in target.get('links', {}) and not target['links'][b].get('disabled')]
         else:
-            buttons = [button]
+            enabled_buttons = [button] if button else []
+        if not (getattr(self, 'farm_assistant_rules', None) or []):
+            buttons = enabled_buttons
+        else:
+            buttons = [button] + [b for b in enabled_buttons if b != button]
 
         coord_text = None
         if isinstance(target, dict) and 'meta' in target and isinstance(target['meta'], dict):
@@ -905,6 +905,7 @@ class AttackManager:
             self.logger.info("Brak dostępnych przycisków farm assistant dla %s, nie można wysłać ataku", coord_text)
             return False
 
+        send_attempted = False
         for btn in buttons:
             link = target['links'][btn] if isinstance(target, dict) and target.get('links') else link
             tpl = link.get('template') if isinstance(link, dict) else None
@@ -928,7 +929,8 @@ class AttackManager:
                 len(target.get('meta', {}) if isinstance(target, dict) else {}),
                 sorted(target.get('meta', {}).keys()) if isinstance(target, dict) else {},
             )
-            if _attempt_link(btn, link, vid):
+            send_attempted = True
+            if self._attempt_link(btn, link, vid):
                 tpl = link.get('template') if isinstance(link, dict) else None
                 if tpl and tpl in self.farm_assistant_templates and self.troopmanager:
                     template_units = self.farm_assistant_templates.get(tpl, {})
@@ -942,7 +944,10 @@ class AttackManager:
                                 pass
                 return True
 
-        if self.farm_assistant:
+        if not send_attempted and self.farm_assistant:
+            return False
+
+        if send_attempted and self.farm_assistant:
             self.logger.warning("Błąd wysyłki farm assistant dla %s, uruchamiam debug i zapisuję raport", coord_text)
             self._debug_failed_farm_assistant_send(vid, target, buttons)
             return False
