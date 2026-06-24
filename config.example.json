@@ -5,8 +5,8 @@
     "author": "stefan2200"
   },
   "server": {
-    "server": "nlc1",
-    "endpoint": "https://nlc1.tribalwars.nl/game.php",
+    "server": "",
+    "endpoint": "",
     "server_on_twstats": false
   },
   "reporting": {
@@ -32,13 +32,13 @@
     "check_update": true
   },
   "building": {
-    "manage_buildings": true,
+    "manage_buildings": false,
     "default": "purple_predator",
     "max_lookahead": 2,
     "max_queued_items": 2
   },
   "units": {
-    "recruit": true,
+    "recruit": false,
     "upgrade": true,
     "default": "basic",
     "batch_size": 25,
@@ -48,7 +48,7 @@
   },
   "village_template": {
     "building": "purple_predator",
-    "units": "basic",
+    "units": "offensive",
     "managed": true,
     "scout_first": false,
     "additional_farms": [],
@@ -67,14 +67,14 @@
   },
   
   "farm_assistant": {
-    "enabled": false,
+    "enabled": true,
     "min_points": 0,
-    "max_points": 50,
+    "max_points": 1500,
     "find_player_owned": false,
     "search_radius": 100,
-    "default_away_time": 3600,
-    "full_loot_away_time": 1800,
-    "low_loot_away_time": 7200,
+    "default_away_time": 1,
+    "full_loot_away_time": 1,
+    "low_loot_away_time": 1,
     "max_farms": 25,
     "attack_higher_points": false,
     "force_scout_if_available": true,
@@ -91,7 +91,7 @@
     "farm_assistant_rule_C_value": 0
   },
   "market": {
-    "auto_trade": true,
+    "auto_trade": false,
     "max_trade_duration": 1,
     "auto_remove": true,
     "trade_multiplier": true,
@@ -99,9 +99,9 @@
     "trade_max_per_hour": 1
   },
   "world": {
-    "knight_enabled": null,
-    "flags_enabled": null,
-    "quests_enabled": null,
+    "knight_enabled": false,
+    "flags_enabled": false,
+    "quests_enabled": false,
     "trade_for_premium": false,
     "archers_enabled": true,
     "building_destruction_enabled": true,
