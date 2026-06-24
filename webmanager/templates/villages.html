@@ -38,16 +38,28 @@
                     </tr>
                     <tr class="table-secondary">
                         <td colspan="6">
-                            <strong>Jednostki:</strong>
-                            {% if vill.troops %}
-                                {% for unit, count in vill.troops.items() %}
-                                    <img src="/static/images/unit_{{ unit }}.png" alt="{{ unit }}" /> {{ count }}
-                                {% endfor %}
-                            {% else %}
-                                Brak danych jednostek
-                            {% endif %}
-                            <br />
-                            <strong>Kolejka budynków:</strong> {{ vill.building_queue | default([]) | length }}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="gold-panel units-panel p-3">
+                                        <h5 class="mb-2">Jednostki</h5>
+                                        <div class="units-list">
+                                            {% if vill.troops %}
+                                                {% for unit, count in vill.troops.items() %}
+                                                    <div class="d-inline-block me-2 align-middle"><img src="/static/images/unit_{{ unit }}.png" alt="{{ unit }}" /> {{ count }}</div>
+                                                {% endfor %}
+                                            {% else %}
+                                                Brak danych jednostek
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="gold-panel queue-panel p-3">
+                                        <h5 class="mb-2">Kolejka budynkowa</h5>
+                                        <div>{{ vill.building_queue | default([]) | length }}</div>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                 {% endfor %}
