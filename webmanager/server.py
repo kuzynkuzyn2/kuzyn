@@ -143,6 +143,52 @@ def pre_process_string(key, value, village_id=None):
             value, key)
 
 
+def pre_process_farm_assistant_rule(button, config_section, village_id=None):
+    field_key = 'farm_assistant_rule_%s_field' % button
+    op_key = 'farm_assistant_rule_%s_op' % button
+    value_key = 'farm_assistant_rule_%s_value' % button
+
+    field_value = config_section.get(field_key, 'none')
+    op_value = config_section.get(op_key, 'none')
+    value_value = config_section.get(value_key, '')
+
+    if village_id:
+        data_attrs = ' data-village-id="%s"' % village_id
+    else:
+        data_attrs = ''
+
+    field_options = ['none', 'wall', 'distance', 'last_attack']
+    op_options = ['none', '<', '>', '<=', '>=', '==']
+    op_labels = {
+        'none': 'none',
+        '<': 'mniejsza (<)',
+        '>': 'większa (>)',
+        '<=': 'mniejsza lub równa (<=)',
+        '>=': 'większa lub równa (>=)',
+        '==': 'równa (==)'
+    }
+
+    output = '<div class="form-row align-items-center">'
+    output += '<div class="col-sm-3 mb-2">'
+    output += '<select class="form-control" data-type="select" data-type-option="farm_assistant.%s"%s>' % (field_key, data_attrs)
+    for option in field_options:
+        output += '<option value="%s" %s>%s</option>' % (option, 'selected' if option == field_value else '', option)
+    output += '</select></div>'
+
+    output += '<div class="col-sm-4 mb-2">'
+    output += '<select class="form-control" data-type="select" data-type-option="farm_assistant.%s"%s>' % (op_key, data_attrs)
+    for option in op_options:
+        output += '<option value="%s" %s>%s</option>' % (option, 'selected' if option == op_value else '', op_labels.get(option, option))
+    output += '</select></div>'
+
+    output += '<div class="col-sm-3 mb-2">'
+    output += '<input type="number" class="form-control" data-type="number" data-type-option="farm_assistant.%s"%s value="%s" />' % (
+        value_key, data_attrs, value_value)
+    output += '</div>'
+    output += '</div>'
+    return output
+
+
 def pre_process_number(key, value, village_id=None):
     if village_id:
         return '<input type="number" data-type="number" class="form-control" data-village-id="%s" value="%s" data-type-option="%s" />' % (
@@ -184,9 +230,27 @@ def pre_process_config():
         if section in to_hide:
             continue
         config_data = ""
+        skip_params = set()
         for parameter in config[section]:
+            if parameter in skip_params:
+                continue
             value = config[section][parameter]
             kvp = "%s.%s" % (section, parameter)
+            if section == 'farm_assistant':
+                m_rule = re.match(r'^farm_assistant_rule_([ABC])_(field|op|value)$', parameter)
+                if m_rule:
+                    button = m_rule.group(1)
+                    rule_keys = {
+                        'farm_assistant_rule_%s_field' % button,
+                        'farm_assistant_rule_%s_op' % button,
+                        'farm_assistant_rule_%s_value' % button
+                    }
+                    config_data += '%s %s' % (
+                        fancy('farm_assistant.farm_assistant_rule_%s' % button),
+                        pre_process_farm_assistant_rule(button, config[section])
+                    )
+                    skip_params.update(rule_keys)
+                    continue
             if type(value) == bool:
                 config_data += '%s %s' % (fancy(kvp), pre_process_bool(kvp, value))
             if type(value) == str:
@@ -210,11 +274,28 @@ def pre_process_village_config(village_id):
         except StopIteration:
             config = {}
     config_data = ""
+    skip_params = set()
     for parameter in config:
         if parameter == "additional_farms":
             continue
+        if parameter in skip_params:
+            continue
         value = config[parameter]
         kvp = "village.%s" % parameter
+        m_rule = re.match(r'^farm_assistant_rule_([ABC])_(field|op|value)$', parameter)
+        if m_rule:
+            button = m_rule.group(1)
+            rule_keys = {
+                'farm_assistant_rule_%s_field' % button,
+                'farm_assistant_rule_%s_op' % button,
+                'farm_assistant_rule_%s_value' % button
+            }
+            config_data += '%s %s' % (
+                fancy('farm_assistant.farm_assistant_rule_%s' % button),
+                pre_process_farm_assistant_rule(button, config, village_id)
+            )
+            skip_params.update(rule_keys)
+            continue
         if type(value) == bool:
             config_data += '%s %s' % (fancy(kvp), pre_process_bool(kvp, value, village_id))
         if type(value) == str:
