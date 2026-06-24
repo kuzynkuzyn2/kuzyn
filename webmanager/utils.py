@@ -7,6 +7,13 @@ import sys
 import psutil
 import threading
 import logging
+try:
+    from webmanager.logbuffer import bot_log_handler
+except Exception:
+    try:
+        from logbuffer import bot_log_handler
+    except Exception:
+        bot_log_handler = None
 
 
 class DataReader:
@@ -262,7 +269,19 @@ class BotManager:
                     for line in iter(self.proc.stdout.readline, ''):
                         if not line:
                             break
-                        logger.info(line.rstrip('\n'))
+                        text = line.rstrip('\n')
+                        # Prefer direct append to in-memory bot log buffer to avoid missing lines
+                        try:
+                            if bot_log_handler is not None:
+                                try:
+                                    bot_log_handler.buffer.append(text)
+                                except Exception:
+                                    # fallback to emit for compatibility
+                                    bot_log_handler.emit(logging.LogRecord('BotSubprocess', logging.INFO, '', 0, text, None, None))
+                            else:
+                                logger.info(text)
+                        except Exception:
+                            logger.info(text)
                 except Exception:
                     logger.exception('Error reading bot subprocess output')
 
