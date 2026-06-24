@@ -131,9 +131,10 @@ class AttackManager:
                         self.troopmanager.troops[u] = str(
                             int(self.troopmanager.troops[u]) - template[u]
                         )
+                    # this was an actual attack send (not a scout), mark as such
                     self.attacked(
                         target["id"],
-                        scout=True,
+                        scout=False,
                         safe=True,
                         high_profile=cached["high_profile"]
                         if type(cached) == dict
@@ -546,8 +547,26 @@ class AttackManager:
             for data in payloads:
                 try:
                     resp = self.wrapper.post_url(url=send_url, data=data)
-                    if resp and resp.status_code == 200 and 'error' not in (resp.text or '').lower():
-                        self.logger.debug("Triggered farm assistant AJAX %s for %s with payload %s", send_url, vid, data)
+                    if not resp:
+                        continue
+                    # prefer JSON responses for ajax endpoints
+                    try:
+                        j = resp.json()
+                        if isinstance(j, dict):
+                            if j.get('error'):
+                                continue
+                            if 'success' in j and bool(j.get('success')):
+                                self.logger.debug("Triggered farm assistant AJAX %s for %s with payload %s (json success)", send_url, vid, data)
+                                return True
+                            # some responses include a 'data' block on success
+                            if 'data' in j:
+                                self.logger.debug("Triggered farm assistant AJAX %s for %s with payload %s (json data)", send_url, vid, data)
+                                return True
+                        # fallback to text heuristics
+                    except Exception:
+                        pass
+                    if resp.status_code == 200 and 'error' not in (resp.text or '').lower():
+                        self.logger.debug("Triggered farm assistant AJAX %s for %s with payload %s (text success)", send_url, vid, data)
                         return True
                 except Exception:
                     continue
