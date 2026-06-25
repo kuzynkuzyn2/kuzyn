@@ -91,6 +91,10 @@ class BuildingManager:
             tmp[e] = int(tmp[e])
         self.levels = tmp
         existing_queue = Extractor.active_building_queue(main_data)
+        self.logger.info(
+            "Builder run started: queue size=%d, existing build queue=%d",
+            len(self.queue), existing_queue,
+        )
         if existing_queue == 0:
             self.waits = []
             self.waits_building = []
@@ -100,6 +104,7 @@ class BuildingManager:
             )
             return False
         if not build:
+            self.logger.info("Build mode disabled for this run, skipping construction actions")
             return False
 
         if existing_queue != 0 and existing_queue != len(self.waits):
@@ -221,7 +226,10 @@ class BuildingManager:
             self.resman.request(source="building", resource="pop", amount=req)
             r = False
         if not r:
-            self.logger.debug(f"Requested resources: {self.resman.requested}")
+            self.logger.info(
+                "Insufficient building resources, requested updates: %s",
+                self.resman.requested,
+            )
         return r
 
     def get_level(self, building):
@@ -255,7 +263,7 @@ class BuildingManager:
 
         queue_check = self.is_queued()
         if queue_check:
-            self.logger.debug("Not building because of queued items: %s", self.waits)
+            self.logger.info("Not building because of queued items: %s", self.waits)
             return False
 
         if self.resman and self.resman.in_need_of("pop"):
@@ -278,11 +286,11 @@ class BuildingManager:
                 self.queue.pop(index)
                 return self.get_next_building_action(index)
             if entry not in self.costs:
-                self.logger.debug("Ignoring %s because not yet available", entry)
+                self.logger.info("Skipping %s because not yet available", entry)
                 return self.get_next_building_action(index + 1)
             check = self.costs[entry]
             if "max_level" in check and min_lvl > check["max_level"]:
-                self.logger.debug(
+                self.logger.info(
                     "Removing entry %s because max_level exceeded", entry
                 )
                 self.queue.pop(index)

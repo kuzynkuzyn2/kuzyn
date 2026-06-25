@@ -104,6 +104,7 @@ class TroopManager:
             self.troops[k] = v
 
         self.logger.debug("Units in village: %s", str(self.troops))
+        self.logger.info("Recruitment refresh started for village %s", self.village_id)
 
         if not self.can_recruit:
             return
@@ -129,6 +130,7 @@ class TroopManager:
             )
             return False
 
+        self.logger.info("Starting recruitment update for %s", building)
         run_selection = list(self.wanted[building].keys())
         if self.randomize_unit_queue:
             random.shuffle(run_selection)
@@ -314,7 +316,7 @@ class TroopManager:
                     self.resman.request(source="research", resource="iron", amount=req)
                     r = False
                 if not r:
-                    self.logger.debug("Research needs resources")
+                    self.logger.info("Research needs resources, requested: %s", self.resman.requested)
                 return False
             if "error_buildings" in data and data["error_buildings"]:
                 self.logger.debug(
@@ -535,6 +537,10 @@ class TroopManager:
                 "Building Village %s %s recruitment queue out-of-sync"
                 % (self.village_id, building)
             )
+            self.logger.info(
+                "Recruitment queue out-of-sync for building %s; cancelling manual entries to resync",
+                building,
+            )
             if not self.can_fix_queue:
                 return True
             for entry in existing:
@@ -570,9 +576,9 @@ class TroopManager:
             )
             return False
         if not resources["requirements_met"]:
-            self.logger.warning(
-                "Recruitment of %d %s failed because it is not researched"
-                % (amount, unit_type)
+            self.logger.info(
+                "Recruitment of %d %s queued for later because requirements are not met",
+                amount, unit_type
             )
             self.attempt_research(unit_type)
             return False
@@ -580,8 +586,8 @@ class TroopManager:
         get_min = self.get_min_possible(resources)
         if get_min == 0:
             self.logger.info(
-                "Recruitment of %d %s failed because of not enough resources"
-                % (amount, unit_type)
+                "Recruitment of %d %s failed because of not enough resources, reserving missing amounts",
+                amount, unit_type
             )
             self.reserve_resources(resources, amount, get_min, unit_type)
             return False
@@ -589,17 +595,17 @@ class TroopManager:
         needed_reserve = False
         if get_min < amount:
             if wait_for:
-                self.logger.warning(
-                    "Recruitment of %d %s failed because of not enough resources"
-                    % (amount, unit_type)
+                self.logger.info(
+                    "Recruitment of %d %s postponed because of not enough resources",
+                    amount, unit_type
                 )
                 self.reserve_resources(resources, amount, get_min, unit_type)
                 needed_reserve = True
                 return False
             if get_min > 0:
                 self.logger.info(
-                    "Recruitment of %d %s was set to %d because of resources"
-                    % (amount, unit_type, get_min)
+                    "Recruitment of %d %s reduced to %d because of available resources",
+                    amount, unit_type, get_min
                 )
                 self.reserve_resources(resources, amount, get_min, unit_type)
                 amount = get_min
