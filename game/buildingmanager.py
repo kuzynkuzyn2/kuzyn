@@ -92,7 +92,7 @@ class BuildingManager:
         self.levels = tmp
         existing_queue = Extractor.active_building_queue(main_data)
         self.logger.info(
-            "Builder run started: queue size=%d, existing build queue=%d",
+            "Próba zakolejkowania budowy. Pozostałe budynki=%d, długość kolejki budowy=%d",
             len(self.queue), existing_queue,
         )
         if existing_queue == 0:
