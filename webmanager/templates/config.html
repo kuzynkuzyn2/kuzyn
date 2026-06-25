@@ -1,30 +1,87 @@
 {% extends "main.html" %}
 
+{% block styles %}
+<style>
+.config-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.config-grid-item {
+    flex: 1 1 340px;
+    max-width: 48%;
+    min-width: 280px;
+}
+@media (max-width: 900px) {
+    .config-grid-item {
+        max-width: 100%;
+    }
+}
+.config-grid-item .gold-panel {
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+}
+.config-card-title {
+    margin-bottom: 0.75rem;
+    font-size: 1.05rem;
+    color: var(--gold-2);
+}
+.config-section-help {
+    display: block;
+    margin-bottom: 1rem;
+    color: var(--muted);
+}
+.card-header.panel-decor {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+[data-type=toggle].btn,
+button[data-type=toggle],
+.btn[data-type=toggle] {
+    display: inline-flex;
+    width: auto;
+    min-width: auto;
+    max-width: 11rem;
+    padding: .25rem .6rem;
+    font-size: .9rem;
+    line-height: 1.25;
+    white-space: nowrap;
+    justify-content: center;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
- 	<div class="col-12">
-	<div class="card">
-	  <div class="card-header panel-decor d-flex justify-content-between align-items-center">
-	    <span class="gold-underline">Ustawienia</span>
-	    <a id="save_config" class="btn btn-gold disabled">Zapisz</a>
-</div>
-
-<div class="row">
     <div class="col-12">
-        {% for section in config %}
-        <div class="card mb-3">
+        <div class="card mb-4">
+            <div class="card-header panel-decor">
+                <span class="gold-underline">Ustawienia</span>
+                <a id="save_config" class="btn btn-gold disabled">Zapisz</a>
+            </div>
             <div class="card-body">
-                <h4 class="gold-underline">{{section}}</h4>
-                {% if section in helpfile %}
-                    <i>{{helpfile[section]}}</i>
-                {% endif %}
+                <div class="config-grid">
+                    {% for section in config %}
+                    <div class="config-grid-item">
+                        <div class="gold-panel">
+                            <h4 class="config-card-title">{{section}}</h4>
+                            {% if section in helpfile %}
+                                <span class="config-section-help">{{helpfile[section]}}</span>
+                            {% endif %}
 
-                <div class="form-vertical">
-                    {{ config[section]|safe }}
+                            <div class="form-vertical">
+                                {{ config[section]|safe }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
 </div>
 {% endblock %}

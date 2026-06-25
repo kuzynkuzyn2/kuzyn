@@ -63,15 +63,15 @@ except Exception:
 def pre_process_bool(key, value, village_id=None):
     if village_id:
         if value:
-            return '<button class="btn btn-sm btn-block btn-success" data-village-id="%s" data-type-option="%s" data-type="toggle">Włączony</button>' % (
+            return '<button class="btn btn-sm btn-success" data-village-id="%s" data-type-option="%s" data-type="toggle">Włączony</button>' % (
             village_id, key)
         else:
-            return '<button class="btn btn-sm btn-block btn-danger" data-village-id="%s" data-type-option="%s" data-type="toggle">Wyłączony</button>' % (
+            return '<button class="btn btn-sm btn-danger" data-village-id="%s" data-type-option="%s" data-type="toggle">Wyłączony</button>' % (
             village_id, key)
     if value:
-        return '<button class="btn btn-sm btn-block btn-success" data-type-option="%s" data-type="toggle">Włączony</button>' % key
+        return '<button class="btn btn-sm btn-success" data-type-option="%s" data-type="toggle">Włączony</button>' % key
     else:
-        return '<button class="btn btn-sm btn-block btn-danger" data-type-option="%s" data-type="toggle">Wyłączony</button>' % key
+        return '<button class="btn btn-sm btn-danger" data-type-option="%s" data-type="toggle">Wyłączony</button>' % key
 
 
 def preprocess_select(key, value, templates, village_id=None):
