@@ -215,20 +215,42 @@ class TWB:
         """
         Gets the overview page to automatically detect world options and owned villages
         """
+        print("Pobieram informacje o wioskach z przeglądu świata")
+        logging.info("Pobieram informacje o wioskach z przeglądu świata")
         overview_page = OverviewPage(self.wrapper)
         self.found_villages = Extractor.village_ids_from_overview(overview_page.result_get.text)
         if config["bot"].get("add_new_villages", False):
             for found_vid in self.found_villages:
                 if found_vid not in config["villages"]:
-                    print(
-                        f"Znaleziono wieś {found_vid}, brak wpisu w konfiguracji. Dodaję automatycznie"
-                    )
+                    msg = f"Znaleziono wieś {found_vid}, brak wpisu w konfiguracji. Dodaję automatycznie"
+                    print(msg)
+                    logging.info(msg)
                     config = self.add_village(village_id=found_vid)
                     if config and found_vid not in [v.village_id for v in self.villages]:
                         new_village = Village(wrapper=self.wrapper, village_id=found_vid)
                         self.villages.append(copy.deepcopy(new_village))
 
         return overview_page, config
+
+    def refresh_villages_from_config(self, config):
+        """
+        Refresh village list and world options from overview.
+        """
+        overview_page, config = self.get_overview(config)
+        has_changed, new_cf = self.get_world_options(overview_page, config)
+        if has_changed:
+            print("Zaktualizowano ustawienia świata")
+            config = self.merge_configs(config, new_cf)
+            FileManager.save_json_file(config, "config.json")
+            print("Zapisano nowy plik konfiguracyjny")
+
+        existing_villages = [v.village_id for v in self.villages]
+        for vid in config["villages"]:
+            if vid not in existing_villages:
+                new_village = Village(wrapper=self.wrapper, village_id=vid)
+                self.villages.append(copy.deepcopy(new_village))
+
+        return config
 
     def add_village(self, village_id, template=None):
         """
@@ -238,13 +260,15 @@ class TWB:
         FileManager.copy_file("config.json", "config.bak")
 
         if not template and "village_template" not in original:
-            print(f"Village entry {village_id} could not be added to the config file!")
+            logging.error(f"Village entry {village_id} could not be added to the config file!")
             return
 
         original["villages"][village_id] = template if template else original["village_template"]
-
+        print("Zapisuję nowy wpis w config.json dla wioski %s" % village_id)
+        logging.info("Tworzę nowy wpis konfiguracyjny dla wioski %s", village_id)
         FileManager.save_json_file(original, "config.json")
         print("Zapisano nowy plik konfiguracyjny")
+        logging.info("Zapisano nowy plik konfiguracyjny")
         return original
 
     @staticmethod
@@ -326,23 +350,12 @@ class TWB:
             return
         self.wrapper.headers["user-agent"] = config["bot"]["user_agent"]
 
-        overview_page, config = self.get_overview(config)
-        has_changed, new_cf = self.get_world_options(overview_page, config)
-        if has_changed:
-            print("Zaktualizowano ustawienia świata")
-            config = self.merge_configs(config, new_cf)
-            FileManager.save_json_file(config, "config.json")
-            print("Zapisano nowy plik konfiguracyjny")
-
         self.villages = []
-        for vid in config["villages"]:
-            v = Village(wrapper=self.wrapper, village_id=vid)
-            self.villages.append(copy.deepcopy(v))
+        config = self.refresh_villages_from_config(config)
 
         # setup additional builder
         rm = None
         defense_states = {}
-        first_cycle = True
         while self.should_run:
             if not self.internet_online():
                 print("Wygląda na to, że internet jest niedostępny, czekam aż wróci...")
@@ -361,17 +374,8 @@ class TWB:
                 )
                 time.sleep(sleep)
             else:
-                if not first_cycle:
-                    config = self.config()
-                    overview_page, config = self.get_overview(config)
-                    has_changed, new_cf = self.get_world_options(overview_page, config)
-                    if has_changed:
-                        print("Zaktualizowano ustawienia świata")
-                        config = self.merge_configs(config, new_cf)
-                        FileManager.save_json_file(config, "config.json")
-                        print("Zapisano nowy plik konfiguracyjny")
-                else:
-                    first_cycle = False
+                config = self.config()
+                config = self.refresh_villages_from_config(config)
 
                 village_number = 1
                 for village in self.villages:

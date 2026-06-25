@@ -89,20 +89,25 @@ class Village:
                 )
                 self.logger.info("Read game state for village")
         else:
+            self.logger = logging.getLogger("Village %s" % self.village_id)
+            print("Pobieram informacje o wiosce %s" % self.village_id)
+            self.logger.info("Pobieram informacje o wiosce %s", self.village_id)
             data = self.wrapper.get_url(
                 f"game.php?village={self.village_id}&screen=overview"
             )
             if data:
                 self.game_data = Extractor.game_state(data)
-                self.logger = logging.getLogger(
-                    "Village %s" % self.game_data["village"]["name"]
-                )
-                self.logger.info("Read game state for village")
-                self.wrapper.reporter.report(
-                    self.village_id,
-                    "TWB_START",
-                    "Starting run for village: %s" % self.game_data["village"]["name"],
-                )
+                if self.game_data:
+                    self.logger = logging.getLogger(
+                        "Village %s" % self.game_data["village"]["name"]
+                    )
+                    self.logger.info("Read game state for village")
+                    print("Pobrano dane wioski %s" % self.game_data["village"]["name"])
+                    self.wrapper.reporter.report(
+                        self.village_id,
+                        "TWB_START",
+                        "Starting run for village: %s" % self.game_data["village"]["name"],
+                    )
         if (
                 self.village_set_name
                 and self.game_data["village"]["name"] != self.village_set_name
