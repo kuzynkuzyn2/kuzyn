@@ -325,13 +325,24 @@ class TWB:
             )
             return
         self.wrapper.headers["user-agent"] = config["bot"]["user_agent"]
+
+        overview_page, config = self.get_overview(config)
+        has_changed, new_cf = self.get_world_options(overview_page, config)
+        if has_changed:
+            print("Zaktualizowano ustawienia świata")
+            config = self.merge_configs(config, new_cf)
+            FileManager.save_json_file(config, "config.json")
+            print("Zapisano nowy plik konfiguracyjny")
+
         self.villages = []
         for vid in config["villages"]:
             v = Village(wrapper=self.wrapper, village_id=vid)
             self.villages.append(copy.deepcopy(v))
+
         # setup additional builder
         rm = None
         defense_states = {}
+        first_cycle = True
         while self.should_run:
             if not self.internet_online():
                 print("Wygląda na to, że internet jest niedostępny, czekam aż wróci...")
@@ -350,14 +361,18 @@ class TWB:
                 )
                 time.sleep(sleep)
             else:
-                config = self.config()
-                overview_page, config = self.get_overview(config)
-                has_changed, new_cf = self.get_world_options(overview_page, config)
-                if has_changed:
-                    print("Zaktualizowano ustawienia świata")
-                    config = self.merge_configs(config, new_cf)
-                    FileManager.save_json_file(config, "config.json")
-                    print("Zapisano nowy plik konfiguracyjny")
+                if not first_cycle:
+                    config = self.config()
+                    overview_page, config = self.get_overview(config)
+                    has_changed, new_cf = self.get_world_options(overview_page, config)
+                    if has_changed:
+                        print("Zaktualizowano ustawienia świata")
+                        config = self.merge_configs(config, new_cf)
+                        FileManager.save_json_file(config, "config.json")
+                        print("Zapisano nowy plik konfiguracyjny")
+                else:
+                    first_cycle = False
+
                 village_number = 1
                 for village in self.villages:
                     if village.village_id not in self.found_villages:
