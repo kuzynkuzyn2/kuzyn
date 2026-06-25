@@ -587,14 +587,21 @@ def bot_command():
 
 @app.route('/app/config/set', methods=['GET'])
 def config_set():
+    parameter = request.args.get("parameter")
+    if parameter is None:
+        return jsonify({"error": "Missing parameter"}), 400
+    value = request.args.get("value")
+    if value is None:
+        return jsonify({"error": "Missing value"}), 400
+
     vid = request.args.get("village_id", None)
     if not vid:
-        DataReader.config_set(parameter=request.args.get("parameter"), value=request.args.get("value", None))
+        DataReader.config_set(parameter=parameter, value=value)
     else:
-        param = request.args.get("parameter")
+        param = parameter
         if param.startswith("village."):
             param = param.replace("village.", "")
-        DataReader.village_config_set(village_id=vid, parameter=param, value=request.args.get("value", None))
+        DataReader.village_config_set(village_id=vid, parameter=param, value=value)
 
     return jsonify(sync())
 

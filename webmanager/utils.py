@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 
 import psutil
 import threading
@@ -17,6 +18,31 @@ except Exception:
 
 
 class DataReader:
+    config_lock = threading.Lock()
+
+    @staticmethod
+    def _save_json_atomic(path, data):
+        tmp_path = "%s.tmp" % path
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, sort_keys=False, ensure_ascii=False)
+        os.replace(tmp_path, path)
+
+    @staticmethod
+    def _load_config_template(config_file_path, example_path):
+        for _ in range(3):
+            try:
+                with open(config_file_path, 'r', encoding='utf-8') as config_file:
+                    return json.load(config_file, object_pairs_hook=collections.OrderedDict)
+            except FileNotFoundError:
+                break
+            except json.JSONDecodeError:
+                time.sleep(0.01)
+        try:
+            with open(example_path, 'r', encoding='utf-8') as example_file:
+                return json.load(example_file, object_pairs_hook=collections.OrderedDict)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return collections.OrderedDict()
+
     @staticmethod
     def cache_grab(cache_location):
         output = {}
@@ -108,58 +134,36 @@ class DataReader:
             pass
         config_file_path = os.path.join(os.path.dirname(__file__), "..", "config.json")
         example_path = os.path.join(os.path.dirname(__file__), "..", "config.example.json")
-        try:
-            with open(config_file_path, 'r') as config_file:
-                template = json.load(config_file, object_pairs_hook=collections.OrderedDict)
-        except (FileNotFoundError, json.JSONDecodeError):
-            try:
-                with open(example_path, 'r') as example_file:
-                    template = json.load(example_file, object_pairs_hook=collections.OrderedDict)
-            except (FileNotFoundError, json.JSONDecodeError):
-                template = collections.OrderedDict()
-
-        if "." in parameter:
-            section, param = parameter.split('.', 1)
-            if section not in template or not isinstance(template[section], dict):
-                template[section] = collections.OrderedDict()
-            template[section][param] = value
-        else:
-            template[parameter] = value
-
-        with open(config_file_path, 'w') as newcf:
-            json.dump(template, newcf, indent=2, sort_keys=False)
-            print("Zapisano nowy plik konfiguracyjny")
-            return True
+        with DataReader.config_lock:
+            template = DataReader._load_config_template(config_file_path, example_path)
+            if "." in parameter:
+                section, param = parameter.split('.', 1)
+                if section not in template or not isinstance(template[section], dict):
+                    template[section] = collections.OrderedDict()
+                template[section][param] = value
+            else:
+                template[parameter] = value
+            DataReader._save_json_atomic(config_file_path, template)
+        print("Zapisano nowy plik konfiguracyjny")
+        return True
 
     @staticmethod
     def village_config_set(village_id, parameter, value):
         config_file_path = os.path.join(os.path.dirname(__file__), "..", "config.json")
         example_path = os.path.join(os.path.dirname(__file__), "..", "config.example.json")
-        try:
-            with open(config_file_path, 'r') as config_file:
-                template = json.load(config_file, object_pairs_hook=collections.OrderedDict)
-        except (FileNotFoundError, json.JSONDecodeError):
+        with DataReader.config_lock:
+            template = DataReader._load_config_template(config_file_path, example_path)
+            if 'villages' not in template or not isinstance(template['villages'], dict):
+                template['villages'] = collections.OrderedDict()
+            if str(village_id) not in template['villages']:
+                template['villages'][str(village_id)] = collections.OrderedDict()
             try:
-                with open(example_path, 'r') as example_file:
-                    template = json.load(example_file, object_pairs_hook=collections.OrderedDict)
-            except (FileNotFoundError, json.JSONDecodeError):
-                template = collections.OrderedDict()
-
-        if 'villages' not in template or not isinstance(template['villages'], dict):
-            template['villages'] = collections.OrderedDict()
-
-        if str(village_id) not in template['villages']:
-            template['villages'][str(village_id)] = collections.OrderedDict()
-
-        try:
-            template['villages'][str(village_id)][parameter] = json.loads(value)
-        except json.decoder.JSONDecodeError:
-            template['villages'][str(village_id)][parameter] = value
-
-        with open(config_file_path, 'w') as newcf:
-            json.dump(template, newcf, indent=2, sort_keys=False)
-            print("Zapisano nowy plik konfiguracyjny")
-            return True
+                template['villages'][str(village_id)][parameter] = json.loads(value)
+            except json.decoder.JSONDecodeError:
+                template['villages'][str(village_id)][parameter] = value
+            DataReader._save_json_atomic(config_file_path, template)
+        print("Zapisano nowy plik konfiguracyjny")
+        return True
 
     @staticmethod
     def get_session():
