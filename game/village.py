@@ -87,10 +87,10 @@ class Village:
                 self.logger = logging.getLogger(
                     "Village %s" % self.game_data["village"]["name"]
                 )
-                self.logger.info("Read game state for village")
+                self.logger.read("Read game state for village")
         else:
             self.logger = logging.getLogger("Village %s" % self.village_id)
-            self.logger.info("Pobieram informacje o wiosce %s przed wykonaniem cyklu", self.village_id)
+            self.logger.read("Pobieram informacje o wiosce %s przed wykonaniem cyklu", self.village_id)
             data = self.wrapper.get_url(
                 f"game.php?village={self.village_id}&screen=overview"
             )
@@ -100,8 +100,8 @@ class Village:
                     self.logger = logging.getLogger(
                         "Village %s" % self.game_data["village"]["name"]
                     )
-                    self.logger.info("Read game state for village")
-                    self.logger.info("Pobrano dane wioski %s przed przetwarzaniem", self.game_data["village"]["name"])
+                    self.logger.read("Read game state for village")
+                    self.logger.read("Pobrano dane wioski %s przed przetwarzaniem", self.game_data["village"]["name"])
                     self.wrapper.reporter.report(
                         self.village_id,
                         "TWB_START",

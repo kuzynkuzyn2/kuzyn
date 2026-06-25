@@ -165,15 +165,21 @@ function formatLogLine(line, kind){
     if(m){
         ts = m[1]; level = m[2]; msg = m[3];
     } else {
-        // Try default space-delimited format: timestamp logger [LEVEL] message
-        m = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?)\s+([^\s]+)\s+\[([A-Z]+)\]\s+(.*)$/);
+        // Try: timestamp - LEVEL - message
+        m = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?) - ([A-Z]+) - (.*)$/);
         if(m){
-            ts = m[1]; logger = m[2]; level = m[3]; msg = m[4];
+            ts = m[1]; level = m[2]; msg = m[3];
         } else {
-            // Fallback: try other separator ' - '
-            var parts = line.split(' - ');
-            if(parts.length >= 4){
-                ts = parts[0]; logger = parts[1]; level = parts[2].replace(/\[|\]/g, ''); msg = parts.slice(3).join(' - ');
+            // Try default space-delimited format: timestamp logger [LEVEL] message
+            m = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?)\s+([^\s]+)\s+\[([A-Z]+)\]\s+(.*)$/);
+            if(m){
+                ts = m[1]; logger = m[2]; level = m[3]; msg = m[4];
+            } else {
+                // Fallback: try other separator ' - '
+                var parts = line.split(' - ');
+                if(parts.length >= 4){
+                    ts = parts[0]; logger = parts[1]; level = parts[2].replace(/\[|\]/g, ''); msg = parts.slice(3).join(' - ');
+                }
             }
         }
     }
@@ -188,12 +194,21 @@ function formatLogLine(line, kind){
         } else if(l.indexOf('WARN')>=0){
             levelClass = 'level-warn';
             lineClass = 'line-warning';
-        } else if(l.indexOf('INFO')>=0){
+        } else if(l === 'INFO'){
             levelClass = 'level-info';
             lineClass = 'line-info';
-        } else if(l.indexOf('DEBUG')>=0){
+        } else if(l === 'DEBUG'){
             levelClass = 'level-debug';
             lineClass = 'line-default';
+        } else if(l === 'GET'){
+            levelClass = 'level-get';
+            lineClass = 'line-get';
+        } else if(l === 'READ'){
+            levelClass = 'level-read';
+            lineClass = 'line-read';
+        } else if(l === 'WORK'){
+            levelClass = 'level-work';
+            lineClass = 'line-work';
         } else {
             levelClass = 'level-info';
             lineClass = 'line-default';
