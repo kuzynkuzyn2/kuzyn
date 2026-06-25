@@ -222,6 +222,10 @@ class TWB:
         if config["bot"].get("add_new_villages", False):
             for found_vid in self.found_villages:
                 if found_vid not in config["villages"]:
+                    current_config = self.config()
+                    if found_vid in current_config.get("villages", {}):
+                        config = current_config
+                        continue
                     msg = f"Znaleziono wieś {found_vid}, brak wpisu w konfiguracji. Dodaję automatycznie"
                     print(msg)
                     logging.info(msg)
@@ -351,11 +355,14 @@ class TWB:
         self.wrapper.headers["user-agent"] = config["bot"]["user_agent"]
 
         self.villages = []
+        print("Pierwsze sprawdzenie listy wiosek i ustawień świata")
+        logging.info("Pierwsze sprawdzenie listy wiosek i ustawień świata")
         config = self.refresh_villages_from_config(config)
 
         # setup additional builder
         rm = None
         defense_states = {}
+        first_cycle = True
         while self.should_run:
             if not self.internet_online():
                 print("Wygląda na to, że internet jest niedostępny, czekam aż wróci...")
@@ -374,8 +381,13 @@ class TWB:
                 )
                 time.sleep(sleep)
             else:
-                config = self.config()
-                config = self.refresh_villages_from_config(config)
+                if not first_cycle:
+                    print("Odświeżam listę wiosek i ustawień świata przed kolejnym cyklem")
+                    logging.info("Odświeżam listę wiosek i ustawień świata przed kolejnym cyklem")
+                    config = self.config()
+                    config = self.refresh_villages_from_config(config)
+                else:
+                    first_cycle = False
 
                 village_number = 1
                 for village in self.villages:
