@@ -220,19 +220,19 @@ class TWB:
         overview_page = OverviewPage(self.wrapper)
         self.found_villages = Extractor.village_ids_from_overview(overview_page.result_get.text)
         if config["bot"].get("add_new_villages", False):
+            current_config = self.config()
             for found_vid in self.found_villages:
-                if found_vid not in config["villages"]:
-                    current_config = self.config()
-                    if found_vid in current_config.get("villages", {}):
-                        config = current_config
-                        continue
+                if found_vid not in current_config.get("villages", {}):
                     msg = f"Znaleziono wieś {found_vid}, brak wpisu w konfiguracji. Dodaję automatycznie"
                     print(msg)
                     logging.info(msg)
-                    config = self.add_village(village_id=found_vid)
-                    if config and found_vid not in [v.village_id for v in self.villages]:
+                    current_config = self.add_village(village_id=found_vid)
+                    if current_config and found_vid not in [v.village_id for v in self.villages]:
                         new_village = Village(wrapper=self.wrapper, village_id=found_vid)
                         self.villages.append(copy.deepcopy(new_village))
+                else:
+                    logging.debug("Wioska %s już istnieje w config.json, pomijam dodawanie", found_vid)
+            config = current_config
 
         return overview_page, config
 
@@ -266,6 +266,10 @@ class TWB:
         if not template and "village_template" not in original:
             logging.error(f"Village entry {village_id} could not be added to the config file!")
             return
+
+        if village_id in original.get("villages", {}):
+            logging.info("Wioska %s już istnieje w config.json, pomijam zapis", village_id)
+            return original
 
         original["villages"][village_id] = template if template else original["village_template"]
         print("Zapisuję nowy wpis w config.json dla wioski %s" % village_id)
@@ -387,8 +391,9 @@ class TWB:
                     config = self.config()
                     config = self.refresh_villages_from_config(config)
                 else:
+                    print("Pomijam odświeżenie listy wiosek w cyklu startowym")
+                    logging.info("Pomijam odświeżenie listy wiosek w cyklu startowym")
                     first_cycle = False
-
                 village_number = 1
                 for village in self.villages:
                     if village.village_id not in self.found_villages:
