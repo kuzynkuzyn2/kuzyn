@@ -921,7 +921,7 @@ class AttackManager:
                     )
                     continue
 
-            self.logger.info("Próba ataku wioski %s przy użyciu %s", coord_text, btn)
+            self.logger.work("Próba ataku wioski %s przy użyciu %s", coord_text, btn)
             self.logger.debug(
                 "Trying farm assistant button %s for %s, target meta fields: %d %s",
                 btn,
