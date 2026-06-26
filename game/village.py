@@ -623,12 +623,6 @@ class Village:
         res = self.wrapper.get_action(village_id=self.village_id, action="overview")
         self.game_data = Extractor.game_state(res)
         self.resman.update(self.game_data)
-        if self.get_config(
-                section="world", parameter="trade_for_premium", default=False
-        ) and self.get_village_config(
-            self.village_id, parameter="trade_for_premium", default=False
-        ):
-            # Ustaw parametr poprawnie, gdy konfiguracja tak mówi.
         self.config = config
         self.wrapper.delay = self.get_config(
             section="bot", parameter="delay_factor", default=1.0
