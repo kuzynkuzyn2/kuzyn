@@ -68,7 +68,7 @@ class Village:
             if parameter == "managed":
                 return True
             self.logger.warning(
-                "Village %s configuration parameter %s does not exist!",
+                "Parametr konfiguracji wsi %s: %s nie istnieje!",
                 village_id, parameter
             )
             return default
@@ -87,10 +87,10 @@ class Village:
                 self.logger = logging.getLogger(
                     "Village %s" % self.game_data["village"]["name"]
                 )
-                self.logger.read("Read game state for village")
+                self.logger.info("Odczytano stan gry dla wsi")
         else:
             self.logger = logging.getLogger("Village %s" % self.village_id)
-            self.logger.read("Pobieram informacje o wiosce %s przed wykonaniem cyklu", self.village_id)
+            self.logger.info("Pobieram informacje o wiosce %s przed wykonaniem cyklu", self.village_id)
             data = self.wrapper.get_url(
                 f"game.php?village={self.village_id}&screen=overview"
             )
@@ -100,12 +100,12 @@ class Village:
                     self.logger = logging.getLogger(
                         "Village %s" % self.game_data["village"]["name"]
                     )
-                    self.logger.read("Read game state for village")
-                    self.logger.read("Pobrano dane wioski %s przed przetwarzaniem", self.game_data["village"]["name"])
+                    self.logger.info("Odczytano stan gry dla wsi")
+                    self.logger.info("Pobrano dane wioski %s przed przetwarzaniem", self.game_data["village"]["name"])
                     self.wrapper.reporter.report(
                         self.village_id,
                         "TWB_START",
-                        "Starting run for village: %s" % self.game_data["village"]["name"],
+                        "Rozpoczęcie przebiegu dla wsi: %s" % self.game_data["village"]["name"],
                     )
         if (
                 self.village_set_name
@@ -159,7 +159,7 @@ class Village:
 
     def setup_defence_manager(self, data):
         """
-        Set-up the defence manager
+        Konfiguruje menedżera obrony
         """
         self.def_man.manage_flags_enabled = self.get_config(
             section="world", parameter="flags_enabled", default=False
@@ -184,31 +184,31 @@ class Village:
             ),
         )
         if self.def_man.under_attack and not self.last_attack:
-            self.logger.warning("Village under attack!")
+            self.logger.warning("Wieś pod atakiem!")
             self.wrapper.reporter.report(
                 self.village_id,
                 "TWB_ATTACK",
-                "Village: %s under attack" % self.game_data["village"]["name"],
+                "Wieś: %s pod atakiem" % self.game_data["village"]["name"],
             )
         self.last_attack = self.def_man.under_attack
 
     def run_quest_actions(self, config):
         if self.get_config(section="world", parameter="quests_enabled", default=False):
             if self.get_quests():
-                self.logger.info("There where completed quests, re-running function")
+                self.logger.info("Były ukończone zadania, ponowne uruchomienie funkcji")
                 self.wrapper.reporter.report(
-                    self.village_id, "TWB_QUEST", "Completed quest"
+                    self.village_id, "TWB_QUEST", "Ukończono zadanie"
                 )
                 return self.run(config=config)
 
             if self.get_quest_rewards():
                 self.wrapper.reporter.report(
-                    self.village_id, "TWB_QUEST", "Collected quest reward(s)"
+                    self.village_id, "TWB_QUEST", " Zebrano nagrody za zadania"
                 )
 
     def units_get_template(self):
         """
-        Fetches the unit template
+        Pobiera szablon jednostek
         """
         if not self.units:
             self.units = TroopManager(wrapper=self.wrapper, village_id=self.village_id)
@@ -235,7 +235,7 @@ class Village:
         )
         if not unit_config:
             self.logger.warning(
-                "Village %d does not have 'units' config override!", self.village_id
+                "Wieś %d nie ma nadpisania konfiguracji 'units'!", self.village_id
             )
             unit_config = self.get_config(
                 section="units", parameter="default", default="basic"
@@ -246,29 +246,29 @@ class Village:
             )
         except Exception as e:
             self.logger.error(
-                "Looks like the unit template file %s is either missing or corrupted", unit_config
+                "Wygląda na to, że plik szablonu jednostek %s nie istnieje lub jest uszkodzony", unit_config
             )
             raise InvalidUnitTemplateException
 
     def run_builder(self):
         """
-        Run building construction actions
+        Uruchamia akcje budowy konstrukcji
         """
         if not self.builder:
             self.builder = BuildingManager(
                 wrapper=self.wrapper, village_id=self.village_id
             )
             self.builder.resman = self.resman
-            # manage buildings (has to always run because recruit check depends on building levels)
+            # zarządzaj budynkami (musi zawsze działać, ponieważ sprawdzanie rekrutacji zależy od poziomów budynków)
         self.build_config = self.get_village_config(
             self.village_id, parameter="building", default=None
         )
         if self.build_config is False:
-            self.logger.debug("Builder is disabled for village %s", self.village_id)
+            self.logger.debug("Builder jest wyłączony dla wsi %s", self.village_id)
             return
         if not self.build_config:
             self.logger.warning(
-                "Village %d does not have 'building' config override!", self.village_id
+                "Wieś %d nie ma nadpisania konfiguracji 'building'!", self.village_id
             )
             self.build_config = self.get_config(
                 section="building", parameter="default", default="purple_predator"
@@ -300,7 +300,7 @@ class Village:
 
     def run_snob_recruit(self):
         """
-        Uses the snob to mint coins, store resources and recruit snobs
+        Używa szlachcica do tworzenia monet, przechowywania zasobów i rekrutacji szlachty
         """
         if (
                 self.get_village_config(self.village_id, parameter="snobs", default=None)
@@ -320,7 +320,7 @@ class Village:
 
     def check_forced_peace(self):
         """
-        Checks if farming is disabled for the current time
+        Sprawdza, czy farmienie jest wyłączone w bieżącym czasie
         """
         # Set timeslots in order to prevent farming during events like national holidays
         forced_peace_times = self.get_config(section="farm_assistant", parameter="forced_peace_times", default=[])
@@ -341,7 +341,7 @@ class Village:
 
     def set_unit_wanted_levels(self):
         """
-        Fetches wanted units for the current buildings
+        Pobiera potrzebne jednostki dla bieżących budynków
         """
         self.current_unit_entry = self.units.get_template_action(self.builder.levels)
 
@@ -362,7 +362,7 @@ class Village:
 
     def run_unit_upgrades(self):
         """
-        Uses smith to research or upgrade units
+        Używa kuźni do badania lub ulepszania jednostek
         """
         if (
                 self.get_config(section="units", parameter="upgrade", default=False)
@@ -372,7 +372,7 @@ class Village:
 
     def do_recruit(self):
         """
-        Recruits new units
+        Rekrutuje nowe jednostki
         """
         if self.get_config(section="units", parameter="recruit", default=False):
             self.units.can_fix_queue = self.get_config(
@@ -389,7 +389,7 @@ class Village:
                     and not self.resman.can_recruit()
             ):
                 self.logger.info(
-                    "Not recruiting because builder has insufficient funds"
+                    "Bez rekrutacji, ponieważ budowniczy ma niewystarczające fundusze"
                 )
                 for x in list(self.resman.requested.keys()):
                     if "recruitment_" in x:
@@ -402,7 +402,7 @@ class Village:
                     and self.snobman.can_snob
                     and self.snobman.is_incomplete
             ):
-                self.logger.info("Not recruiting because snob has insufficient funds")
+                self.logger.info("Bez rekrutacji, ponieważ szlachcic ma niewystarczające fundusze")
                 for x in list(self.resman.requested.keys()):
                     if "recruitment_" in x:
                         self.resman.requested.pop(f"{x}", None)
@@ -411,7 +411,7 @@ class Village:
                 for building in self.units.wanted:
                     if not self.builder.get_level(building):
                         self.logger.debug(
-                            "Recruit of %s will be ignored because building is not (yet) available", building
+                            "Rekrutacja %s zostanie zignorowana, ponieważ budynek nie jest (jeszcze) dostępny", building
                         )
                         continue
                     self.units.start_update(building, self.disabled_units)
@@ -431,7 +431,7 @@ class Village:
 
     def set_farm_options(self):
         """
-        Sets various options for farming management
+        Ustawia różne opcje zarządzania farmieniem
         """
         # Ensure attack manager exists
         if not self.attack:
@@ -464,7 +464,7 @@ class Village:
         self.attack.farm_assistant = False
         if assistant_conf:
             self.attack.farm_assistant = assistant_conf.get("enabled", False) or assistant_conf.get("auto_send_assistant_attacks", False)
-        self.logger.debug("Farm assistant enabled for village %s = %s", self.village_id, self.attack.farm_assistant)
+        self.logger.debug("Farm assistant włączony dla wsi %s = %s", self.village_id, self.attack.farm_assistant)
 
         # load optional conditional rules for selecting assistant icon/button
         raw_rules = _get_assistant("farm_assistant_rules", [])
@@ -501,50 +501,50 @@ class Village:
         if self.attack.farm_assistant:
             self.attack.template = None
             self.logger.debug(
-                "Farm assistant enabled for village %s, local troop templates will be ignored", self.village_id
+                "Farm assistant włączony dla wsi %s, lokalne szablony wojsk zostaną zignorowane", self.village_id
             )
         elif self.current_unit_entry:
             self.attack.template = self.current_unit_entry["farm"]
-        self.logger.debug("Farm template for village %s: %s", self.village_id, getattr(self.attack, 'template', None))
-        self.logger.debug("Farm assistant templates for village %s: %s", self.village_id, getattr(self.attack, 'farm_assistant_templates', None))
+        self.logger.debug("Szablon farmy dla wsi %s: %s", self.village_id, getattr(self.attack, 'template', None))
+        self.logger.debug("Szablony farm assistenta dla wsi %s: %s", self.village_id, getattr(self.attack, 'farm_assistant_templates', None))
 
     def run_farming(self):
         """
-        Runs the farming logic
+        Uruchamia logikę farmienia
         """
-        # Farm assistant is enabled when attack.farm_assistant is true
+        # Farm assistant jest włączony, gdy attack.farm_assistant jest true
         if not self.attack or not self.attack.farm_assistant:
-            self.logger.debug("Farm assistant not enabled for village %s", self.village_id)
+            self.logger.debug("Farm assistant nie jest włączony dla wsi %s", self.village_id)
             return
 
-        # ensure farm assistant targets are loaded
+        # upewnij się, że cele farm assistenta są załadowane
         self.attack.ensure_farm_assistant_targets()
 
-        # get a fresh local map (needed for coordinates) only if not using farm_assistant
+        # pobierz świeżą lokalną mapę (potrzebną do współrzędnych) tylko jeśli nie używasz farm_assistant
         try:
             if not self.attack.farm_assistant:
                 m = Map(wrapper=self.wrapper, village_id=self.village_id)
                 m.get_map()
                 self.attack.map = m
             else:
-                # when using farm_assistant we trigger attacks directly from am_farm
-                self.logger.debug("Skipping map fetch because farm_assistant is enabled for village %s", self.village_id)
+                # przy użyciu farm_assistant wyzwalane ataki bezpośrednio z am_farm
+                self.logger.debug("Pomijanie pobierania mapy, ponieważ farm_assistant jest włączony dla wsi %s", self.village_id)
         except Exception:
-            self.logger.debug("Unable to fetch map for assistant attacks")
+            self.logger.debug("Nie można pobrać mapy dla ataków farm assistenta")
 
-        # iterate over assistant targets and send attacks up to max_farms
+        # iteruj po celach farm assistenta i wysyłaj ataki do max_farms
         sent = 0
         targets = list(self.attack.farm_assistant_targets.keys()) if self.attack.farm_assistant_targets else []
-        self.logger.debug("Assistant targets for village %s: %s", self.village_id, targets)
-        self.logger.debug("Available troops for village %s: %s", self.village_id, getattr(self.units, 'troops', None))
+        self.logger.debug("Cele farm assistenta dla wsi %s: %s", self.village_id, targets)
+        self.logger.debug("Dostępne wojska dla wsi %s: %s", self.village_id, getattr(self.units, 'troops', None))
         for vid in targets:
             if sent >= self.attack.max_farms:
                 break
 
-            # show candidate link before safety check
+            # pokaż link kandydata przed sprawdzeniem bezpieczeństwa
             try:
                 link = self.attack.get_farm_assistant_link(vid)
-                self.logger.debug("Resolved farm assistant link for %s -> %s", vid, link)
+                self.logger.debug("Rozwiązany link farm assistenta dla %s -> %s", vid, link)
             except Exception:
                 link = None
 
@@ -568,11 +568,11 @@ class Village:
             sent += 1
 
         if sent:
-            self.logger.info("Sent %d assistant farm attacks from village %s", sent, self.village_id)
+            self.logger.info("Wysłano %d ataków farm assistenta z wsi %s", sent, self.village_id)
 
     def do_gather(self):
         """
-        Runs gathering if unlocked and active
+        Uruchamia zbieranie, jeśli odblokowane i aktywne
         """
         self.units.can_gather = self.get_config(
             section="gather",
@@ -596,12 +596,12 @@ class Village:
 
     def go_manage_market(self):
         """
-        Manages the market
+        Zarządza rynkiem
         """
         if self.get_config(
                 section="market", parameter="auto_trade", default=False
         ) and self.builder.get_level("market"):
-            self.logger.info("Managing market")
+            self.logger.info("Zarządzanie rynkiem")
             self.resman.trade_max_per_hour = self.get_config(
                 section="market", parameter="trade_max_per_hour", default=1
             )
@@ -628,12 +628,7 @@ class Village:
         ) and self.get_village_config(
             self.village_id, parameter="trade_for_premium", default=False
         ):
-            # Set the parameter correctly when the config says so.
-            self.resman.do_premium_trade = True
-            self.resman.do_premium_stuff()
-
-    def run(self, config=None, first_run=False):
-        # setup and check if village still exists / is accessible
+            # Ustaw parametr poprawnie, gdy konfiguracja tak mówi.
         self.config = config
         self.wrapper.delay = self.get_config(
             section="bot", parameter="delay_factor", default=1.0
@@ -643,7 +638,7 @@ class Village:
 
         if not self.game_data:
             self.logger.error(
-                "Error reading game data for village %s", self.village_id
+                "Błąd odczytu danych gry dla wsi %s", self.village_id
             )
             raise VillageInitException
 
@@ -687,7 +682,7 @@ class Village:
         self.go_manage_market()
 
         self.set_cache_vars()
-        self.logger.info("Village cycle done, returning to overview")
+        self.logger.info("Cykl wsi zakończony, powrót do przeglądu")
         self.wrapper.reporter.report(
             self.village_id, "TWB_POST_RESOURCE", str(self.resman.actual)
         )
@@ -719,9 +714,9 @@ class Village:
                 params={"quest": result, "skip": "false"},
             )
             if qres:
-                self.logger.info("Completed quest: %s", str(result))
+                self.logger.info("Ukończono zadanie: %s", str(result))
                 return True
-        self.logger.debug("There where no completed quests")
+        self.logger.debug("Nie ukończono żadnych zadań")
         return False
 
     def get_quest_rewards(self):
@@ -730,13 +725,13 @@ class Village:
             village_id=self.village_id,
             params={"screen": 'new_quests', "tab": "main-tab", "quest": 0},
         )
-        # The data is escaped for JS, so unescape it before sending it to the extractor.
+        # Dane są escapowane dla JS, więc od-escapujemy je przed wysłaniem do ekstraktora.
         rewards = Extractor.get_quest_rewards(decode(result["response"]["dialog"], 'unicode-escape'))
         for reward in rewards:
-            # First check if there is enough room for storing the reward
+            # Najpierw sprawdź, czy jest wystarczająco miejsca na przechowanie nagrody
             for t_resource in reward["reward"]:
                 if self.resman.storage - self.resman.actual[t_resource] < reward["reward"][t_resource]:
-                    self.logger.info("Not enough room to store the %s part of the reward", t_resource)
+                    self.logger.info("Za mało miejsca, aby przechować część nagrody: %s", t_resource)
                     return False
 
             qres = self.wrapper.post_api_data(
@@ -747,14 +742,14 @@ class Village:
             )
             if qres:
                 if not qres['response']:
-                    self.logger.debug("Error getting reward! %s", qres)
+                    self.logger.debug("Błąd pobierania nagrody! %s", qres)
                     return False
                 else:
-                    self.logger.info("Got quest reward: %s", str(reward))
+                    self.logger.info("Otrzymano nagrodę za zadanie: %s", str(reward))
                     for t_resource in reward["reward"]:
                         self.resman.actual[t_resource] += reward["reward"][t_resource]
 
-        self.logger.debug("There where no (more) quest rewards")
+        self.logger.debug("Nie ma (więcej) nagród za zadania")
         return len(rewards) > 0
 
     def set_cache_vars(self):

@@ -51,7 +51,7 @@ class Extractor:
     @staticmethod
     def get_quests(res):
         """
-        Gets quest data on almost any page
+        Pobiera dane zadań z prawie każdej strony
         """
         if type(res) != str:
             res = res.text
@@ -67,7 +67,7 @@ class Extractor:
     @staticmethod
     def get_quest_rewards(res):
         """
-        Detects if there are rewards available for quests
+        Wykrywa, czy są dostępne nagrody za zadania
         """
         if type(res) != str:
             res = res.text
@@ -78,13 +78,13 @@ class Extractor:
             for reward in result:
                 if reward['status'] == "unlocked":
                     rewards.append(reward)
-        # Return all off them
+        # Zwróć wszystkie z nich
         return rewards
 
     @staticmethod
     def map_data(res):
         """
-        Detects other villages on the map page
+        Wykrywa inne wsie na stronie mapy
         """
         if type(res) != str:
             res = res.text
@@ -96,7 +96,7 @@ class Extractor:
     @staticmethod
     def smith_data(res):
         """
-        Gets smith data
+        Pobiera dane kuźni
         """
         if type(res) != str:
             res = res.text
@@ -109,7 +109,7 @@ class Extractor:
     @staticmethod
     def premium_data(res):
         """
-        Detects data on the premium exchange page
+        Wykrywa dane na stronie wymiany premium
         """
         if type(res) != str:
             res = res.text
@@ -122,7 +122,7 @@ class Extractor:
     @staticmethod
     def recruit_data(res):
         """
-        Fetches recruit data for the current building
+        Pobiera dane rekrutacji dla bieżącego budynku
         """
         if type(res) != str:
             res = res.text
@@ -137,7 +137,7 @@ class Extractor:
     @staticmethod
     def units_in_village(res):
         """
-        Detects all units in the village
+        Wykrywa wszystkie jednostki we wsi
         """
         if type(res) != str:
             res = res.text
@@ -157,7 +157,7 @@ class Extractor:
     @staticmethod
     def active_building_queue(res):
         """
-        Detects queued building entries
+        Wykrywa wpisy budynków w kolejce
         """
         if type(res) != str:
             res = res.text
@@ -170,7 +170,7 @@ class Extractor:
     @staticmethod
     def active_recruit_queue(res):
         """
-        Detects active recruitment entries
+        Wykrywa aktywne wpisy rekrutacji
         """
         if type(res) != str:
             res = res.text
@@ -180,7 +180,7 @@ class Extractor:
     @staticmethod
     def village_ids_from_overview(res):
         """
-        Fetches villages from the overview page
+        Pobiera wsie ze strony przeglądu
         """
         if type(res) != str:
             res = res.text
@@ -190,11 +190,11 @@ class Extractor:
     @staticmethod
     def units_in_total(res):
         """
-        Gets total amount of units in a village
+        Pobiera całkowitą liczbę jednostek we wsi
         """
         if type(res) != str:
             res = res.text
-        # hide units from other villages
+        # ukryj jednostki z innych wiosek
         res = re.sub(r'(?s)<span class="village_anchor.+?</tr>', '', res)
         data = re.findall(r'(?s)class=\Wunit-item unit-item-([a-z]+)\W.+?(\d+)</td>', res)
         return data
@@ -202,8 +202,8 @@ class Extractor:
     @staticmethod
     def attack_form(res):
         """
-        Detects input fiels in the attack form
-        ... because there are many :)
+        Wykrywa pola wejściowe w formularzu ataku
+        ... ponieważ jest ich wiele :)
         """
         if type(res) != str:
             res = res.text
@@ -213,7 +213,7 @@ class Extractor:
     @staticmethod
     def farm_assistant_pagination(res):
         """
-        Detects additional farm assistant pages from pagination
+        Wykrywa dodatkowe strony farm assistenta z paginacji
         """
         if type(res) != str:
             res = res.text
@@ -222,19 +222,19 @@ class Extractor:
     @staticmethod
     def farm_assistant_targets(res):
         """
-        Extracts available farm assistant target links and wall levels
+        Wyodrębnia dostępne linki celów farm assistenta i poziomy muru
         """
         if type(res) != str:
             res = res.text
         targets = {}
-        # try to detect current village id from page to build proper place links
+        # spróbuj wykryć ID bieżącej wsi ze strony, aby zbudować prawidłowe linki place
         cur_vid = None
         m_vid = re.search(r'"village"\s*:\s*\{[^}]*?"id"\s*:\s*(\d+)', res)
         if m_vid:
             cur_vid = m_vid.group(1)
         rows = re.findall(r'(?s)<tr[^>]*>(.*?)</tr>', res)
         for row in rows:
-            # quick skip if no farm related tokens
+            # szybko pomiń, jeśli nie ma tokenów związanych z farmą
             if 'farm' not in row and 'farm_icon' not in row and 'am_farm' not in row:
                 continue
             tds = re.findall(r'(?s)<td[^>]*>(.*?)</td>', row)
@@ -248,13 +248,13 @@ class Extractor:
                     except Exception:
                         wall = 0
 
-            # find all anchor tags in the row including attributes and inner HTML
+            # znajdź wszystkie znaczniki zakotwiczenia w wierszu, łącznie z atrybutami i wewnętrznym HTML
             anchors = re.findall(r'(?s)<a([^>]*)>(.*?)</a>', row)
             for attrs, inner in anchors:
                 action = None
                 href = None
                 onclick = None
-                # extract attributes
+                # wyodrębnij atrybuty
                 href_m = re.search(r'href="([^"\']*)"', attrs)
                 if href_m:
                     href = href_m.group(1)
@@ -262,7 +262,7 @@ class Extractor:
                 if onclick_m:
                     onclick = onclick_m.group(1)
 
-                # detect action letter from class attribute or from attributes string
+                # wykryj literę akcji z atrybutu class lub z ciągu atrybutów
                 class_m = re.search(r'class="([^"]*)"', attrs)
                 disabled = False
                 if class_m:
@@ -273,7 +273,7 @@ class Extractor:
                     if re.search(r'farm_icon_disabled|start_locked|\bdone\b', cls, re.I):
                         disabled = True
 
-                # fallback: look inside inner HTML or the whole row
+                # awaryjnie: szukaj w wewnętrznym HTML lub całym wierszu
                 if not action:
                     m2 = re.search(r'farm[_-]?icon[_-]?([abc])', inner, re.I)
                     if m2:
@@ -287,11 +287,11 @@ class Extractor:
                     continue
 
                 vid = None
-                # prefer onclick pattern that contains sendUnits(village, template)
+                # preferuj wzorzec onclick zawierający sendUnits(village, template)
                 if onclick:
                     m = re.search(r'sendUnits\s*\(\s*this\s*,\s*(\d+)\s*,\s*(\d+)\s*\)', onclick)
                     if not m:
-                        # sometimes this is without 'this'
+                        # czasami jest to bez 'this'
                         m = re.search(r'sendUnits\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)', onclick)
                     if m:
                         vid = m.group(1)
@@ -301,14 +301,14 @@ class Extractor:
                         except Exception:
                             template_id = None
 
-                # if no vid from onclick, try common href params
+                # jeśli brak vid z onclick, spróbuj typowych parametrów href
                 if not vid and href:
                     for regex in [r'farm[_-]?icon[_-]?[abc]=(\d+)', r'target=(\d+)', r'village=(\d+)', r'target_id=(\d+)']:
                         mm = re.search(regex, href)
                         if mm:
                             vid = mm.group(1)
                             break
-                # fallback: any 4-7 digit number in href
+                # awaryjnie: dowolna 4-7-cyfrowa liczba w href
                 if not vid and href:
                     mm2 = re.search(r'(\d{4,7})', href)
                     if mm2:
@@ -317,7 +317,7 @@ class Extractor:
                 if not vid:
                     continue
 
-                # build a usable link: use place screen so the attacker can load the normal attack form
+                # zbuduj użyteczny link: użyj ekranu place, aby atakujący mógł załadować normalny formularz ataku
                 if href and href != '#':
                     usable_link = href
                 else:
@@ -325,7 +325,7 @@ class Extractor:
                         usable_link = f"game.php?village={cur_vid}&screen=place&target={vid}"
                     else:
                         usable_link = f"game.php?village=0&screen=place&target={vid}"
-                # store raw attributes so caller can choose how to trigger the click
+                # przechowuj surowe atrybuty, aby wywołujący mógł wybrać sposób wywołania kliknięcia
                 target = targets.setdefault(str(vid), {'wall': wall, 'links': {}})
                 target['links'][action.upper()] = {
                     'href': href,
@@ -334,8 +334,8 @@ class Extractor:
                     'disabled': disabled,
                 }
 
-                # try to detect safety/report status within the row
-                # default to safe=True unless we detect hostile markers
+                # spróbuj wykryć status bezpieczeństwa/raportu w wierszu
+                # domyślnie safe=True, chyba że wykryto oznaczenia wroga
                 safe = True
                 if re.search(r'report[-_ ]?(state|status)[^>]*>([^<]+)', row, re.I):
                     mtxt = re.search(r'report[-_ ]?(state|status)[^>]*>([^<]+)', row, re.I)
@@ -344,26 +344,26 @@ class Extractor:
                 if re.search(r'class="[^"]*(report|report-state|report-icon)[^"]*(red|danger|bad)[^"]*"', row, re.I):
                     safe = False
 
-                # detect loot result type from row icons or titles
+                # wykryj typ wyniku łupu z ikon lub tytułów wiersza
                 loot_type = 'unknown'
                 if re.search(r'max_loot/(?:1|full)\.(?:webp|png|jpg)', row, re.I) or re.search(r'full[_-]?loot', row, re.I):
                     loot_type = 'full'
                 elif re.search(r'max_loot/(?:0|partial)\.(?:webp|png|jpg)', row, re.I) or re.search(r'partial[_-]?loot', row, re.I):
                     loot_type = 'partial'
 
-                # extract coordinate data from row text
+                # wyodrębnij dane współrzędnych z tekstu wiersza
                 coords = None
                 coords_match = re.search(r'\((\d+)\|(\d+)\)', row)
                 if coords_match:
                     coords = {'x': int(coords_match.group(1)), 'y': int(coords_match.group(2))}
 
-                # extract target time / last attack info
+                # wyodrębnij czas ostatniego ataku z wiersza
                 last_attack = None
                 time_match = re.search(r'(\d{2}:\d{2}:\d{2})', row)
                 if time_match:
                     last_attack = time_match.group(1)
 
-                # extract basic resources from row; prefer the resources cell if present
+                # wyodrębnij podstawowe zasoby z wiersza; preferuj komórkę zasobów, jeśli obecna
                 resources = {}
                 try:
                     tds = re.findall(r'(?s)<td[^>]*>(.*?)</td>', row)
@@ -379,7 +379,7 @@ class Extractor:
                 except Exception:
                     resources = {}
 
-                # detect wall and distance from farm assistant row
+                # wykryj mur i odległość z wiersza farm assistenta
                 wall_value = wall
                 distance_value = None
                 if len(tds) > 6:
@@ -398,7 +398,7 @@ class Extractor:
                     except Exception:
                         pass
 
-                # attach detected metadata to target
+                # dołącz wykryte metadane do celu
                 if 'meta' not in target:
                     target['meta'] = {}
                 target['meta'].update({
@@ -411,7 +411,7 @@ class Extractor:
                     'distance': distance_value,
                 })
 
-                # attach template id if we parsed one
+                # dołącz identyfikator szablonu, jeśli został sparsowany
                 if 'links' in target and action.upper() in target['links']:
                     try:
                         if template_id:
@@ -424,7 +424,7 @@ class Extractor:
     @staticmethod
     def farm_assistant_templates(res):
         """
-        Extracts farm assistant templates from the farm assistant page JavaScript.
+        Wyodrębnia szablony farm assistenta z JavaScript strony farm assistenta.
         """
         if type(res) != str:
             res = res.text
@@ -438,7 +438,7 @@ class Extractor:
     @staticmethod
     def farm_assistant_units(res):
         """
-        Extract available units from the farm assistant page.
+        Wyodrębnia dostępne jednostki ze strony farm assistenta.
         """
         if type(res) != str:
             res = res.text
@@ -469,7 +469,7 @@ class Extractor:
     @staticmethod
     def farm_assistant_loot_limit(res):
         """
-        Extract farm loot limit information from the farm assistant page.
+        Wyodrębnia informacje o limicie łupu ze strony farm assistenta.
         """
         if type(res) != str:
             res = res.text
@@ -487,7 +487,7 @@ class Extractor:
     @staticmethod
     def attack_duration(res):
         """
-        Detects the duration of an attack
+        Wykrywa czas trwania ataku
         """
         if type(res) != str:
             res = res.text
@@ -499,7 +499,7 @@ class Extractor:
     @staticmethod
     def report_table(res):
         """
-        Fetches information from a report
+        Pobiera informacje z raportu
         """
         if type(res) != str:
             res = res.text
@@ -509,7 +509,7 @@ class Extractor:
     @staticmethod
     def get_daily_reward(res):
         """
-        Detects if there are unopened daily rewards
+        Wykrywa, czy są nieodebrane codzienne nagrody
         """
         if type(res) != str:
             res = res.text

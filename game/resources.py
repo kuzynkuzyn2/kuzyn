@@ -10,7 +10,7 @@ from core.extractors import Extractor
 
 class PremiumExchange:
     """
-    Logika interakcji z wymianą premialnych zasobców
+    Logika interakcji z wymianą premium zasobów
     """
 
     def __init__(self, wrapper, stock: dict, capacity: dict, tax: dict, constants: dict, duration: int, merchants: int):
@@ -22,7 +22,7 @@ class PremiumExchange:
         self.duration = duration
         self.merchants = merchants
 
-    # do not call this anihilation (calculate_cost) - i dechipered it from tribalwars js
+    # nie nazywaj tego anihilacją (calculate_cost) - odszyfrowałem to z kodu JS TribalWars
     def calculate_cost(self, item, a):
         """
         Obliczenie kosztu giełdy zapasów
@@ -90,7 +90,7 @@ class PremiumExchange:
 
 class ResourceManager:
     """
-    Class to calculate, store and reserve resources for actions
+    Klasa do obliczania, przechowywania i rezerwowania zasobów dla akcji
     """
     actual = {}
 
@@ -100,7 +100,7 @@ class ResourceManager:
     ratio = 2.5
     max_trade_amount = 4000
     logger = None
-    # not allowed to bias
+    # nie wolno stronniczości
     trade_bias = 1
     last_trade = 0
     trade_max_per_hour = 1
@@ -111,15 +111,15 @@ class ResourceManager:
 
     def __init__(self, wrapper=None, village_id=None):
         """
-        Create the resource manager
-        Preferably used by anything that builds/recruits/sends/whatever
+        Tworzy menedżera zasobów
+        Preferowany do użycia przez wszystko, co buduje/rekrutuje/wysyła/cokolwiek
         """
         self.wrapper = wrapper
         self.village_id = village_id
 
     def update(self, game_state):
         """
-        Update the current resources based on the game state
+        Aktualizuje bieżące zasoby na podstawie stanu gry
         """
         self.actual["wood"] = game_state["village"]["wood"]
         self.actual["stone"] = game_state["village"]["stone"]
@@ -130,15 +130,15 @@ class ResourceManager:
         self.storage = game_state["village"]["storage_max"]
         self.check_state()
         store_state = game_state["village"]["name"]
-        self.logger = logging.getLogger(f"Resource Manager: {store_state}")
+        self.logger = logging.getLogger(f"Menedżer zasobów: {store_state}")
 
     def do_premium_stuff(self):
         """
-        Does premium stuff
+        Wykonuje operacje premium
         """
         gpl = self.get_plenty_off()
         self.logger.debug(
-            "Trying premium trade: gpl %s do? %s", gpl, self.do_premium_trade
+            "Próba wymiany premium: gpl %s zrobić? %s", gpl, self.do_premium_trade
         )
         if gpl and self.do_premium_trade:
             url = f"game.php?village={self.village_id}&screen=market&mode=exchange"
@@ -157,29 +157,29 @@ class ResourceManager:
 
             cost_per_point = premium_exchange.calculate_rate_for_one_point(gpl)
 
-            self.logger.debug("Cost per point: %s", cost_per_point)
-            self.logger.info("Current %s price: ", self.actual[gpl])
+            self.logger.debug("Koszt za punkt: %s", cost_per_point)
+            self.logger.info("Aktualna cena %s: ", self.actual[gpl])
 
             if not data:
-                self.logger.warning("Error reading premium data!")
+                self.logger.warning("Błąd odczytu danych premium!")
             price_fetch = ["wood", "stone", "iron"]
             prices = {}
 
             for p in price_fetch:
                 prices[p] = data["stock"][p] * data["rates"][p]
 
-            self.logger.info("Actual premium prices: %s",  prices)
+            self.logger.info("Aktualne ceny premium: %s",  prices)
 
             if gpl in prices and prices[gpl] * 1.1 < self.actual[gpl]:
                 self.logger.info(
-                    "Attempting trade of %d %s for premium point", prices[gpl], gpl
+                    "Próba wymiany %d %s na punkt premium", prices[gpl], gpl
                 )
 
                 if data["merchants"] < 1:
-                    self.logger.info("Not enough merchants available!")
+                    self.logger.info("Za mało kupców!")
                     return
 
-                self.logger.debug(f"Trying to trade {gpl} - exchange_begin")
+                self.logger.debug(f"Próba wymiany {gpl} - exchange_begin")
 
                 prices[gpl] = int(prices[gpl])
 
@@ -190,10 +190,10 @@ class ResourceManager:
                     size=1000
                 )
 
-                self.logger.debug(f"Optimized trade: {gpl} {gpl_data} {gpl_data['n_to_sell'] * cost_per_point}")
+                self.logger.debug(f"Zoptymalizowana wymiana: {gpl} {gpl_data} {gpl_data['n_to_sell'] * cost_per_point}")
 
                 if gpl_data["ratio"] > 0.4:
-                    self.logger.info("Not worth trading!")
+                    self.logger.info("Nie warto handlować!")
                     return
 
                 result = self.wrapper.get_api_action(
@@ -220,18 +220,18 @@ class ResourceManager:
                     )
 
                     if result:
-                        self.logger.info("Trade successful!")
+                        self.logger.info("Wymiana zakończona pomyślnie!")
                     else:
-                        self.logger.info("Trade failed!")
+                        self.logger.info("Wymiana nie powiodła się!")
                 else:
                     self.logger.debug(
-                        f"Trying to trade %s for premium points - exchange_begin - failed", gpl
+                        f"Próba wymiany %s na punkty premium - exchange_begin - nie powiodła się", gpl
                     )
-                    self.logger.info("Trade failed!")
+                    self.logger.info("Wymiana nie powiodła się!")
 
     def check_state(self):
         """
-        Removes resource requests when the amount is met
+        Usuwa żądania zasobów, gdy ilość jest spełniona
         """
         for source in self.requested:
             for res in self.requested[source]:
@@ -240,7 +240,7 @@ class ResourceManager:
 
     def request(self, source="building", resource="wood", amount=1):
         """
-        When called, resources can be taken from other actions
+        Po wywołaniu zasoby mogą być pobrane z innych akcji
 
         """
         if source in self.requested:
@@ -250,10 +250,10 @@ class ResourceManager:
 
     def can_recruit(self):
         """
-        Checks of population is sufficient for recruitment
+        Sprawdza, czy populacja jest wystarczająca do rekrutacji
         """
         if self.actual["pop"] == 0:
-            self.logger.info("Can't recruit, no room for pops!")
+            self.logger.info("Nie można rekrutować, brak miejsca na populację!")
             for x in self.requested:
                 if "recruitment" in x:
                     del self.requested[x]
@@ -270,7 +270,7 @@ class ResourceManager:
 
     def get_plenty_off(self):
         """
-        Checks of there is overcapacity in a village
+        Sprawdza, czy we wsi jest nadwyżka zasobów
         """
         most_of = 0
         most = None
@@ -283,19 +283,19 @@ class ResourceManager:
                 continue
             if sub == "pop":
                 continue
-            # self.logger.debug(f"We have {self.actual[sub]} {sub}. Enough? {self.actual[sub]} > {int(self.storage / self.ratio)}")
+            # self.logger.debug(f"Mamy {self.actual[sub]} {sub}. Wystarczająco? {self.actual[sub]} > {int(self.storage / self.ratio)}")
             if self.actual[sub] > int(self.storage / self.ratio):
                 if self.actual[sub] > most_of:
                     most = sub
                     most_of = self.actual[sub]
         if most:
-            self.logger.debug(f"We have plenty of {most}")
+            self.logger.debug(f"Mamy pod dostatkiem {most}")
 
         return most
 
     def in_need_of(self, obj_type):
         """
-        Checks if the village lacks a certain resource
+        Sprawdza, czy we wsi brakuje danego zasobu
         """
         for x in self.requested:
             types = self.requested[x]
@@ -305,7 +305,7 @@ class ResourceManager:
 
     def in_need_amount(self, obj_type):
         """
-        Checks what would be needed in order to match requirements
+        Sprawdza, co byłoby potrzebne do spełnienia wymagań
         """
         amount = 0
         for x in self.requested:
@@ -316,7 +316,7 @@ class ResourceManager:
 
     def get_needs(self):
         """
-        All of the above
+        Wszystko powyżej
         """
         needed_the_most = None
         needed_amount = 0
@@ -335,12 +335,12 @@ class ResourceManager:
 
     def trade(self, me_item, me_amount, get_item, get_amount):
         """
-        Creates a new trading offer
+        Tworzy nową ofertę handlową
         """
         url = f"game.php?village={self.village_id}&screen=market&mode=own_offer"
         res = self.wrapper.get_url(url=url)
         if 'market_merchant_available_count">0' in res.text:
-            self.logger.debug("Not trading because not enough merchants available")
+            self.logger.debug("Brak wymiany, ponieważ za mało kupców")
             return False
         payload = {
             "res_sell": me_item,
@@ -358,7 +358,7 @@ class ResourceManager:
 
     def drop_existing_trades(self):
         """
-        Removes an existing trade if resources are needed elsewhere or it expired
+        Usuwa istniejącą wymianę, jeśli zasoby są potrzebne gdzie indziej lub wygasła
         """
         url = f"game.php?village={self.village_id}&screen=market&mode=all_own_offer"
         data = self.wrapper.get_url(url)
@@ -374,12 +374,12 @@ class ResourceManager:
                 }
                 self.wrapper.post_url(url=post_url, data=post)
                 self.logger.info(
-                    "Removing offer %s from market because it existed too long" % offer
+                    "Usuwanie oferty %s z rynku, ponieważ istniała zbyt długo" % offer
                 )
 
     def readable_ts(self, seconds):
         """
-        Human readable timestamp
+        Czytelny dla człowieka znacznik czasu
         """
         seconds -= int(time.time())
         seconds = seconds % (24 * 3600)
@@ -392,17 +392,17 @@ class ResourceManager:
 
     def manage_market(self, drop_existing=True):
         """
-        Manages the market for you
+        Zarządza rynkiem za Ciebie
         """
         last = self.last_trade + int(3600 * self.trade_max_per_hour)
         if last > int(time.time()):
             rts = self.readable_ts(last)
-            self.logger.debug(f"Won't trade for {rts}")
+            self.logger.debug(f"Nie będę handlował przez {rts}")
             return
 
         get_h = time.localtime().tm_hour
         if get_h in range(0, 6) or get_h == 23:
-            self.logger.debug("Not managing trades between 23h-6h")
+            self.logger.debug("Brak zarządzania wymianami między 23-6")
             return
         if drop_existing:
             self.drop_existing_trades()
@@ -411,7 +411,7 @@ class ResourceManager:
         if plenty and not self.in_need_of(plenty):
             need = self.get_needs()
             if need:
-                # check incoming resources
+                # sprawdź nadchodzące zasoby
                 url = f"game.php?village={self.village_id}&screen=market&mode=other_offer"
                 res = self.wrapper.get_url(url=url)
                 p = re.compile(
@@ -424,40 +424,40 @@ class ResourceManager:
                         "".join([s for s in incoming[0][1] if s.isdigit()])
                     )
                     self.logger.info(
-                        f"There are resources incoming! %s", resource_incoming
+                        f"Nadchodzą zasoby! %s", resource_incoming
                     )
 
                 item, how_many = need
                 how_many = round(how_many, -1)
                 if item in resource_incoming and resource_incoming[item] >= how_many:
                     self.logger.info(
-                        f"Needed {item} already incoming! ({resource_incoming[item]} >= {how_many})"
+                        f"Potrzebny {item} już nadchodzi! ({resource_incoming[item]} >= {how_many})"
                     )
                     return
                 if how_many < 250:
                     return
 
-                self.logger.debug("Checking current market offers")
+                self.logger.debug("Sprawdzanie bieżących ofert rynkowych")
                 if self.check_other_offers(item, how_many, plenty):
-                    self.logger.debug("Took market offer!")
+                    self.logger.debug("Skorzystano z oferty rynkowej!")
                     return
 
                 if how_many > self.max_trade_amount:
                     how_many = self.max_trade_amount
                     self.logger.debug(
-                        "Lowering trade amount of %d to %d because of limitation", how_many, self.max_trade_amount
+                        "Zmniejszanie ilości wymiany z %d do %d z powodu ograniczenia", how_many, self.max_trade_amount
                     )
                 biased = int(how_many * self.trade_bias)
                 if self.actual[plenty] < biased:
-                    self.logger.debug("Cannot trade because insufficient resources")
+                    self.logger.debug("Nie można handlować z powodu niewystarczających zasobów")
                     return
                 self.logger.info(
-                    "Adding market trade of %d %s -> %d %s", how_many, item, biased, plenty
+                    "Dodawanie wymiany rynkowej %d %s -> %d %s", how_many, item, biased, plenty
                 )
                 self.wrapper.reporter.report(
                     self.village_id,
                     "TWB_MARKET",
-                    "Adding market trade of %d %s -> %d %s"
+                    "Dodawanie wymiany rynkowej %d %s -> %d %s"
                     % (how_many, item, biased, plenty),
                 )
 
@@ -465,7 +465,7 @@ class ResourceManager:
 
     def check_other_offers(self, item, how_many, sell):
         """
-        Checks if there are offers that match our needs
+        Sprawdza, czy istnieją oferty pasujące do naszych potrzeb
         """
         url = f"game.php?village={self.village_id}&screen=market&mode=other_offer"
         res = self.wrapper.get_url(url=url)
@@ -484,12 +484,12 @@ class ResourceManager:
         if item in resource_incoming:
             how_many = how_many - resource_incoming[item]
             if how_many < 1:
-                self.logger.info("Requested resource already incoming!")
+                self.logger.info("Żądany zasób już nadchodzi!")
                 return False
 
         willing_to_sell = self.actual[sell] - self.in_need_amount(sell)
         self.logger.debug(
-            f"Found {len(cur_off_tds)} offers on market, willing to sell {willing_to_sell} {sell}"
+            f"Znaleziono {len(cur_off_tds)} ofert na rynku, chcę sprzedać {willing_to_sell} {sell}"
         )
 
         for tds in cur_off_tds:
@@ -501,7 +501,7 @@ class ResourceManager:
             )
 
             if len(off_id) < 1:
-                # Not enough resources to trade
+                # Za mało zasobów do handlu
                 continue
 
             offer = self.parse_res_offer(res_offer, off_id[0])
@@ -512,16 +512,16 @@ class ResourceManager:
                     and offer["wanted_amount"] <= willing_to_sell
             ):
                 self.logger.info(
-                    f"Good offer: {offer['offer_amount']} {offer['offered']} for {offer['wanted_amount']} {offer['wanted']}"
+                    f"Dobra oferta: {offer['offer_amount']} {offer['offered']} za {offer['wanted_amount']} {offer['wanted']}"
                 )
-                # Take the deal!
+                # Weź ofertę!
                 payload = {
                     "count": 1,
                     "id": offer["id"],
                     "h": self.wrapper.last_h,
                 }
                 post_url = f"game.php?village={self.village_id}&screen=market&mode=other_offer&action=accept_multi&start=0&id={offer['id']}&h={self.wrapper.last_h}"
-                # print(f"Would post: {post_url} {payload}")
+                # print(f"Wysłano by: {post_url} {payload}")
                 self.wrapper.post_url(post_url, data=payload)
                 self.last_trade = int(time.time())
                 self.actual[offer["wanted"]] = (
@@ -529,12 +529,12 @@ class ResourceManager:
                 )
                 return True
 
-        # No useful offers found
+        # Nie znaleziono przydatnych ofert
         return False
 
     def parse_res_offer(self, res_offer, id):
         """
-        Parse an offer
+        Analizuje ofertę
         """
         off, want, ratio = res_offer
         res_offer, res_offer_amount = off

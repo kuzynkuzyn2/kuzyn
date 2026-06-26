@@ -50,7 +50,7 @@ class DefenceManager:
     def __init__(self, village_id=None, wrapper=None):
         self.village_id = village_id
         self.wrapper = wrapper
-        self.logger = logging.getLogger("Defence Manager")
+        self.logger = logging.getLogger("Menedżer obrony")
 
     def support_other(self, requesting_village):
 
@@ -64,7 +64,7 @@ class DefenceManager:
                 send_support[u] = int(int(self.units.troops[u]) * self.support_factor)
 
         self.logger.info(
-            "Sending requested support to village %s: %s", requesting_village, str(send_support)
+            "Wysyłanie żądanego wsparcia do wsi %s: %s", requesting_village, str(send_support)
         )
         return self.support(requesting_village, troops=send_support)
 
@@ -90,7 +90,7 @@ class DefenceManager:
                 if vil != self.village_id:
                     continue
                 if len(self.supported) >= self.support_max_villages:
-                    self.logger.debug("Already supported 2 villages, ignoring")
+                    self.logger.debug("Już wspierane 2 wsie, ignorowanie")
                     break
                 if (
                         not self.under_attack
@@ -106,8 +106,8 @@ class DefenceManager:
                     ok = False
                 index += 1
         if ok:
-            self.logger.info("Area OK for village %s, nice and quiet", self.village_id)
-            # All is well
+            self.logger.info("Obszar OK dla wsi %s, miło i cicho", self.village_id)
+            # Wszystko w porządku
 
     def evacuate(self):
         if not self.units:
@@ -117,7 +117,7 @@ class DefenceManager:
             if u in self.units.troops and int(self.units.troops[u]) > 0:
                 to_hide[u] = int(self.units.troops[u])
         if to_hide and len(self.my_other_villages) == 1:
-            # good luck ;)
+            # powodzenia ;)
             return False
         for v_obj in self.my_other_villages:
             vid, attack_state = v_obj
@@ -125,7 +125,7 @@ class DefenceManager:
                 continue
             if not attack_state:
                 self.logger.info(
-                    "Evacuating troops from village %s: %s", vid, str(to_hide)
+                    "Ewakuacja wojsk z wsi %s: %s", vid, str(to_hide)
                 )
                 self.support(vid, troops=to_hide)
                 return True
@@ -146,7 +146,7 @@ class DefenceManager:
             if not self._can_change_flag:
                 if not self._sf_logged:
                     self.logger.info(
-                        "Unable to set new flag on village %s because of cool down", self.village_id
+                        "Nie można ustawić nowej flagi we wsi %s z powodu czasu odnowienia", self.village_id
                     )
                     self._sf_logged = True
                 return
@@ -155,7 +155,7 @@ class DefenceManager:
                 set_flag, level=self.get_highest_flag_possible(flag_id=set_flag)
             )
             self.logger.info(
-                "Setting flag %d level %d for village %s",
+                "Ustawianie flagi %d poziom %d dla wsi %s",
                 set_flag, self.get_highest_flag_possible(flag_id=set_flag), self.village_id
             )
 
@@ -187,10 +187,10 @@ class DefenceManager:
     def manage_flags(self):
         if not self.manage_flags_enabled:
             return
-        # Randomize flag runs
+        # Losuj przebiegi flag
         if self.runs != 0 and self.runs % random.randint(3, 8) != 0:
             return
-        self.logger.info("Managing flags")
+        self.logger.info("Zarządzanie flagami")
 
         url = f"game.php?village={self.village_id}&screen=flags"
         result = self.wrapper.get_url(url=url)
@@ -199,7 +199,7 @@ class DefenceManager:
 
         get_flag_data = re.search(r"FlagsScreen\.setFlagCounts\((.+?)\);", result.text)
         if not get_flag_data:
-            self.logger.warning("Error reading flag data")
+            self.logger.warning("Błąd odczytu danych flag")
             return
         get_current_flag = re.search(
             r'(?s)<div id="current_flag".+?/(\d+)_(\d+)\.png.+?<p>(.+?)</p>.+?</div>',
@@ -208,7 +208,7 @@ class DefenceManager:
         if get_current_flag:
             if '<div id="current_flag" style="margin-top: 10px; display: none">' in result.text:
                 self.logger.warning(
-                    "No flag was identified on village, setting default one"
+                    "Nie zidentyfikowano flagi we wsi, ustawianie domyślnej"
                 )
                 self.current_flag = None
             else:
@@ -216,7 +216,7 @@ class DefenceManager:
                 if cflag != self.current_flag:
                     self.current_flag = cflag
                     self.logger.info(
-                        "Current village flag: %s", get_current_flag.group(3).strip()
+                        "Bieżąca flaga wsi: %s", get_current_flag.group(3).strip()
                     )
         upgraded = 0
         raw_flags = json.loads(get_flag_data.group(1))
@@ -226,7 +226,7 @@ class DefenceManager:
                 for amount in raw_flags[flag_type][level]:
                     if int(amount) >= 3:
                         self.flag_upgrade(flag=flag_type, level=level)
-                        self.logger.info("Upgraded flag %s", flag_type)
+                        self.logger.info("Ulepszono flagę %s", flag_type)
                         upgraded += 1
                     if int(amount) > 0:
                         if int(flag_type) not in self.flags or self.flags[

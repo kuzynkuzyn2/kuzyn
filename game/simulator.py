@@ -3,7 +3,7 @@ import math
 from core.filemanager import FileManager
 
 
-# Tribalwars simulator class, based on real math stuff I guess
+# Klasa symulatora Tribalwars, oparta na prawdziwej matematyce, jak sądzę
 class Simulator:
     pool = {
         "spear": {

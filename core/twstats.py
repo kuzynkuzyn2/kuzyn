@@ -1,5 +1,5 @@
 """
-Detects certain building levels from TWStats
+Wykrywa określone poziomy budynków z TWStats
 """
 
 import json
@@ -15,7 +15,7 @@ from core.filemanager import FileManager
 
 class TwStats:
     """
-    Default max building levels
+    Domyślne maksymalne poziomy budynków
     """
     max_levels = {
         'main': 30,
@@ -36,7 +36,7 @@ class TwStats:
 
     def buildings_to_farm_pop(self, buildings):
         """
-        Detect max farm population per level
+        Wykrywa maksymalną populację farmy na poziom
         """
         total = 0
         for b in buildings:
@@ -46,7 +46,7 @@ class TwStats:
 
     def get_building_data(self, world):
         """
-        Detects building data from TWStats
+        Wykrywa dane budynków z TWStats
         """
         output = defaultdict(dict)
         for upgrade_building in self.max_levels:
@@ -70,26 +70,26 @@ class TwStats:
 
     def run(self, world):
         """
-        Runs the update function
+        Uruchamia funkcję aktualizacji
         """
         if self.output == {}:
             template = TwsCache.get_cache(world=world)
             if not template:
-                self.logger.info("Syncing building -> pop levels with twstats.com")
+                self.logger.info("Synchronizacja poziomów budynków -> populacji z twstats.com")
                 return self.get_building_data(world=world)
             self.output = template
-            self.logger.debug("Using existing building -> pop levels")
+            self.logger.debug("Użycie istniejących poziomów budynków -> populacji")
             return template
 
 
 class TwsCache:
     """
-    Cache data for TWStats
+    Dane pamięci podręcznej dla TWStats
     """
     @staticmethod
     def get_cache(world):
         """
-        Gets the current cache
+        Pobiera bieżącą pamięć podręczną
         """
         cache_path = f"cache/world/buildings_{world}.json"
         alt_cache_path = f"../cache/world/buildings_{world}.json"

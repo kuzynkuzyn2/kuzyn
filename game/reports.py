@@ -26,6 +26,7 @@ class ReportManager:
         """
         self.wrapper = wrapper
         self.village_id = village_id
+        self.logger = logging.getLogger("Raporty")
 
     def has_resources_left(self, vid):
         """
@@ -37,7 +38,7 @@ class ReportManager:
             entry = self.last_reports[repid]
             if vid == entry["dest"] and entry["extra"].get("when", None):
                 possible_reports.append(entry)
-        # self.logger.debug(f"Considered {len(possible_reports)} reports")
+        # self.logger.debug(f"Rozważono {len(possible_reports)} raportów")
         if len(possible_reports) == 0:
             return False, {}
 
@@ -48,15 +49,15 @@ class ReportManager:
             return datetime.fromtimestamp(int(attack["extra"]["when"]))
 
         entry = max(possible_reports, key=highest_when)
-        self.logger.debug("This is the newest? %s", datetime.fromtimestamp(int(entry["extra"]["when"])))
+        self.logger.debug("To jest najnowsze? %s", datetime.fromtimestamp(int(entry["extra"]["when"])))
         if entry["extra"].get("resources", None):
             return True, entry["extra"]["resources"]
         return False, {}
 
     def safe_to_engage(self, vid):
         """
-        Calculates if a village is safe to engage without custom interaction
-        Just sending a 0 losses attack overrides this behaviour
+        Oblicza, czy wieś jest bezpieczna do zaatakowania bez niestandardowej interakcji
+        Wysłanie ataku z 0 strat nadpisuje to zachowanie
         """
         for repid in self.last_reports:
             entry = self.last_reports[repid]
@@ -75,34 +76,34 @@ class ReportManager:
                     return 1
 
                 if entry["losses"] != {}:
-                    # Acceptable losses for attacks
-                    print(f'Units sent: {entry["extra"]["units_sent"]}')
-                    print(f'Units lost: {entry["losses"]}')
+                    # Dopuszczalne straty dla ataków
+                    print(f'Wysłane jednostki: {entry["extra"]["units_sent"]}')
+                    print(f'Stracone jednostki: {entry["losses"]}')
 
                 for sent_type in entry["extra"]["units_sent"]:
                     amount = entry["extra"]["units_sent"][sent_type]
                     if sent_type in entry["losses"]:
                         if amount == entry["losses"][sent_type]:
-                            return 0  # Lost all units!
+                            return 0  # Stracono wszystkie jednostki!
                         elif entry["losses"][sent_type] <= 1:
-                            # Allow to lose 1 unit (luck depended)
-                            return 1  # Lost 'just' one unit
+                            # Pozwala stracić 1 jednostkę (zależne od szczęścia)
+                            return 1  # Stracono 'tylko' jedną jednostkę
 
                 if entry["losses"] != {}:
-                    return 0  # Disengage if anything was lost!
+                    return 0  # Wycofaj się, jeśli cokolwiek zostało stracone!
         return -1
 
     def read(self, page=0, full_run=False):
         """
-        Read some (or all if you like) reports
+        Odczytuje niektóre (lub wszystkie, jeśli chcesz) raporty
         """
         if not self.logger:
-            self.logger = logging.getLogger("Reports")
+            self.logger = logging.getLogger("Raporty")
 
         if len(self.last_reports) == 0:
-            self.logger.info("First run, re-reading cache entries")
+            self.logger.info("Pierwszy przebieg, ponowne odczytywanie wpisów cache")
             self.last_reports = ReportCache.cache_grab()
-            self.logger.info("Got %d reports from cache", len(self.last_reports))
+            self.logger.info("Pobrano %d raportów z cache", len(self.last_reports))
         offset = page * 12
         url = f"game.php?village={self.village_id}&screen=report&mode=all"
         if page > 0:
@@ -132,14 +133,14 @@ class ReportManager:
         if new == 12 or full_run and page < 20:
             page += 1
             self.logger.debug(
-                "%d new reports where added, also checking page %d", new, page
+                "Dodano %d nowych raportów, sprawdzam również stronę %d", new, page
             )
             return self.read(page, full_run=full_run)
 
     def re_unit(self, inp):
         """
-        No idea why I made this and what it does
-        Guessing reading a line of units?
+        Nie mam pojęcia, dlaczego to zrobiłem i co to robi
+        Zgaduję: czytanie linii jednostek?
         """
         output = {}
         for row in inp:
@@ -150,7 +151,7 @@ class ReportManager:
 
     def re_building(self, inp):
         """
-        Read building levels from a report entry
+        Odczytuje poziomy budynków z wpisu raportu
         """
         output = {}
         for row in inp:
@@ -162,7 +163,7 @@ class ReportManager:
 
     def attack_report(self, report, report_id):
         """
-        A report where we attacked a village
+        Raport, w którym zaatakowaliśmy wieś
         """
         from_village = None
         from_player = None
@@ -234,13 +235,13 @@ class ReportManager:
             ):
                 loot[loot_entry[0]] = loot_entry[1]
             extra["loot"] = loot
-            self.logger.info("attack report %s -> %s", from_village, to_village)
+            self.logger.info("raport ataku %s -> %s", from_village, to_village)
 
         scout_results = re.search(
             r'(?s)(<table id="attack_spy_resources".+?</table>)', report
         )
         if scout_results:
-            self.logger.info("scout report %s -> %s", from_village, to_village)
+            self.logger.info("raport zwiadu %s -> %s", from_village, to_village)
             scout_buildings = re.search(
                 r'(?s)<input id="attack_spy_building_data" type="hidden" value="(.+?)"',
                 report,
@@ -278,7 +279,7 @@ class ReportManager:
             data={},
     ):
         """
-        Creates a report file
+        Tworzy plik raportu
         """
         output = {
             "type": report_type,
@@ -289,33 +290,33 @@ class ReportManager:
         }
         ReportCache.set_cache(report_id, output)
         self.logger.info(
-            "Processed %s report with id %s", report_type, str(report_id)
+            "Przetworzono raport %s o identyfikatorze %s", report_type, str(report_id)
         )
         return output
 
 
 class ReportCache:
     """
-    File cache for local reports
+    Pamięć podręczna plików dla lokalnych raportów
     """
     @staticmethod
     def get_cache(report_id):
         """
-        Reads a report entry
+        Odczytuje wpis raportu
         """
         return FileManager.load_json_file(f"cache/reports/{report_id}.json")
 
     @staticmethod
     def set_cache(report_id, entry):
         """
-        Creates a report entry
+        Tworzy wpis raportu
         """
         FileManager.save_json_file(entry, f"cache/reports/{report_id}.json")
 
     @staticmethod
     def cache_grab():
         """
-        Reads all locally stored reports
+        Odczytuje wszystkie lokalnie przechowywane raporty
         """
         output = {}
 

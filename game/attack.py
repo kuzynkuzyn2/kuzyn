@@ -1,6 +1,6 @@
 """
 Menedżer ataków
-Brzmmi niebezpiecznie, ale to tylko wysyła farmy
+Brzmi niebezpiecznie, ale to tylko wysyła farmy
 """
 
 from core.extractors import Extractor
@@ -22,7 +22,7 @@ class AttackManager:
     troopmanager = None
     wrapper = None
     targets = {}
-    logger = logging.getLogger("Attacks")
+    logger = logging.getLogger("Ataki")
     max_farms = 15
     template = {}
     extra_farm = []
@@ -64,7 +64,7 @@ class AttackManager:
 
     def enough_in_village(self, units):
         """
-        Checks if there are enough troops in a village
+        Sprawdza, czy we wsi jest wystarczająca liczba jednostek
         """
         for unit in units:
             if unit not in self.troopmanager.troops:
@@ -75,14 +75,14 @@ class AttackManager:
 
     def run(self):
         """
-        Run the farming logic
+        Uruchamia logikę farmienia
         """
         if not self.troopmanager.can_attack or self.troopmanager.troops == {}:
-            # Disable farming is disabled in config or no troops available
+            # Farmienie jest wyłączone w konfiguracji lub brak dostępnych jednostek
             return False
         self.get_targets()
         ignored = []
-        # Limits the amount of villages that are farmed from the current village
+        # Ogranicza liczbę wiosek farmionych z bieżącej wsi
         for target in self.targets[0: self.max_farms]:
             if type(self.template) == list:
                 f = False
@@ -104,7 +104,7 @@ class AttackManager:
 
     def send_farm(self, target, template):
         """
-        Send a farming run
+        Wysyła farmę
         """
         target, _ = target
         missing = self.enough_in_village(template)
@@ -118,12 +118,12 @@ class AttackManager:
                 if attack_result == "forced_peace":
                     return 0
                 self.logger.info(
-                    "Attacking %s -> %s (%s)" ,self.village_id, target["id"], str(template)
+                    "Atakowanie %s -> %s (%s)" ,self.village_id, target["id"], str(template)
                 )
                 self.wrapper.reporter.report(
                     self.village_id,
                     "TWB_FARM",
-                    "Attacking %s -> %s (%s)"
+                    "Atakowanie %s -> %s (%s)"
                     % (self.village_id, target["id"], str(template)),
                 )
                 if attack_result:
@@ -131,7 +131,7 @@ class AttackManager:
                         self.troopmanager.troops[u] = str(
                             int(self.troopmanager.troops[u]) - template[u]
                         )
-                    # this was an actual attack send (not a scout), mark as such
+                    # to było faktyczne wysłanie ataku (nie zwiad), oznacz jako takie
                     self.attacked(
                         target["id"],
                         scout=False,
@@ -146,19 +146,19 @@ class AttackManager:
                     return 1
                 else:
                     self.logger.debug(
-                        "Ignoring target %s because unable to attack", target["id"]
+                        "Ignorowanie celu %s, ponieważ nie można zaatakować", target["id"]
                     )
                     self._unknown_ignored.append(target["id"])
         else:
             self.logger.debug(
-                "Not sending additional farm because not enough units: %s", missing
+                "Nie wysyłam dodatkowej farmy, ponieważ za mało jednostek: %s", missing
             )
             return -1
         return 0
 
     def get_targets(self):
         """
-        Gets all possible farming targets based on distance
+        Pobiera wszystkie możliwe cele farmienia na podstawie odległości
         """
         output = []
         my_village = (
@@ -171,7 +171,7 @@ class AttackManager:
             if village["owner"] != "0" and vid not in self.extra_farm:
                 if vid not in self.ignored:
                     self.logger.debug(
-                        "Ignoring village %s because player owned, add to additional_farms to auto attack", vid
+                        "Ignorowanie wsi %s, ponieważ jest własnością gracza, dodaj do additional_farms, aby automatycznie atakować", vid
                     )
                     self.ignored.append(vid)
                 continue
@@ -179,7 +179,7 @@ class AttackManager:
                 if village["points"] >= self.farm_maxpoints:
                     if vid not in self.ignored:
                         self.logger.debug(
-                            "Ignoring village %s because points %d exceeds limit %d",
+                            "Ignorowanie wsi %s, ponieważ punkty %d przekraczają limit %d",
                             vid, village["points"], self.farm_maxpoints
                         )
                         self.ignored.append(vid)
@@ -187,7 +187,7 @@ class AttackManager:
                 if village["points"] <= self.farm_minpoints:
                     if vid not in self.ignored:
                         self.logger.debug(
-                            "Ignoring village %s because points %d below limit %d",
+                            "Ignorowanie wsi %s, ponieważ punkty %d poniżej limitu %d",
                             vid, village["points"], self.farm_minpoints
                         )
                         self.ignored.append(vid)
@@ -198,7 +198,7 @@ class AttackManager:
                 ):
                     if vid not in self.ignored:
                         self.logger.debug(
-                            "Ignoring village %s because of higher points %d -> %d",
+                            "Ignorowanie wsi %s z powodu wyższych punktów %d -> %d",
                             vid, my_village["points"], village["points"]
                         )
                         self.ignored.append(vid)
@@ -209,31 +209,31 @@ class AttackManager:
                 get_h = time.localtime().tm_hour
                 if get_h in range(0, 8) or get_h == 23:
                     self.logger.debug(
-                        "Village %s will be ignored because it is player owned and attack between 23h-8h", vid
+                        "Wieś %s będzie ignorowana, ponieważ jest własnością gracza i atak w godzinach 23-8", vid
                     )
                     continue
             distance = self.map.get_dist(village["location"])
             if distance > self.farm_radius:
                 if vid not in self.ignored:
                     self.logger.debug(
-                        "Village %s will be ignored because it is too far away: distance is %f, max is %d",
+                        "Wieś %s będzie ignorowana, ponieważ jest za daleko: odległość wynosi %f, maks. wynosi %d",
                         vid, distance, self.farm_radius
                     )
                     self.ignored.append(vid)
                 continue
             if vid in self.ignored:
-                self.logger.debug("Removed %s from farm ignore list", vid)
+                self.logger.debug("Usunięto %s z listy ignorowanych farm", vid)
                 self.ignored.remove(vid)
 
             output.append([village, distance])
         self.logger.info(
-            "Farm targets: %d Ignored targets: %d", len(output), len(self.ignored)
+            "Cele farmy: %d Ignorowane cele: %d", len(output), len(self.ignored)
         )
         self.targets = sorted(output, key=lambda x: x[1])
 
     def attacked(self, vid, scout=False, high_profile=False, safe=True, low_profile=False):
         """
-        The farm was sent and this is a callback on what happened
+        Farma została wysłana i jest to callback dotyczący tego, co się stało
         """
         cache_entry = {
             "scout": scout,
@@ -246,11 +246,11 @@ class AttackManager:
 
     def scout(self, vid):
         """
-        Attempt to send scouts to a farm
+        Próbuje wysłać zwiadowców do farmy
         """
         if "spy" not in self.troopmanager.troops or int(self.troopmanager.troops["spy"]) < self.scout_farm_amount:
             self.logger.debug(
-                "Cannot scout %s at the moment because insufficient unit: spy", vid
+                "Nie można teraz zwiadować %s z powodu niewystarczającej jednostki: spy", vid
             )
             return False
         troops = {"spy": self.scout_farm_amount}
@@ -259,18 +259,18 @@ class AttackManager:
 
     def can_attack(self, vid, clear=False):
         """
-        Checks if it is safe en engage
-        If not an amount of 5 scouts will be sent
+        Sprawdza, czy bezpiecznie jest zaangażować
+        Jeśli nie, zostanie wysłanych 5 zwiadowców
         """
         cache_entry = AttackCache.get_cache(vid)
 
-        # If farm assistant mode is enabled, prefer using data from am_farm
+        # Jeśli tryb farm assistenta jest włączony, preferuj dane z am_farm
         if self.farm_assistant:
             try:
                 self.ensure_farm_assistant_targets()
                 ta = self.farm_assistant_targets.get(str(vid))
                 if ta:
-                    # compute min_time similar to normal cache logic
+                    # oblicz min_time podobnie do logiki normalnego cache
                     min_time = self.farm_default_wait
                     if cache_entry:
                         if cache_entry.get('high_profile'):
@@ -302,7 +302,7 @@ class AttackManager:
             last_attack = datetime.fromtimestamp(cache_entry["last_attack"])
             now = datetime.now()
             if last_attack < now - timedelta(hours=12):
-                self.logger.debug(f"Attacked long ago %s, trying scout attack", {last_attack})
+                self.logger.debug(f"Atakowany dawno %s, próba ataku zwiadowczego", {last_attack})
                 if self.scout(vid):
                     return False
 
@@ -311,7 +311,7 @@ class AttackManager:
             if status == 1:
                 return True
 
-            # only attempt to scout if we actually have spies available
+            # próba zwiadu tylko jeśli rzeczywiście mamy dostępnych zwiadowców
             troops = getattr(self.troopmanager, 'troops', {}) or {}
             try:
                 spy_count = int(troops.get('spy', 0))
@@ -322,9 +322,9 @@ class AttackManager:
                 self.scout(vid)
                 return False
 
-            # no scouts available to perform a safe check; warn and proceed blind
+            # brak dostępnych zwiadowców do sprawdzenia bezpieczeństwa; ostrzeż i kontynuuj na ślepo
             self.logger.warning(
-                "%s will be attacked but scouting not possible (insufficient spies), proceeding blind!", vid
+                "%s będzie zaatakowana, ale zwiad nie jest możliwy (niewystarczająca liczba zwiadowców), kontynuacja na ślepo!", vid
             )
             return True
 
@@ -333,26 +333,26 @@ class AttackManager:
                 status = self.repman.safe_to_engage(vid)
                 if status == -1:
                     self.logger.info(
-                        "Checking %s: scout report not yet available", vid
+                        "Sprawdzanie %s: raport zwiadu jeszcze niedostępny", vid
                     )
                     return False
                 if status == 0:
                     if cache_entry["last_attack"] + self.farm_low_prio_wait * 2 > int(time.time()):
-                        self.logger.info(f"{vid}: Old scout report found ({cache_entry['last_attack']}), re-scouting")
+                        self.logger.info(f"{vid}: Znaleziono stary raport zwiadu ({cache_entry['last_attack']}), ponowny zwiad")
                         self.scout(vid)
                         return False
                     else:
                         self.logger.info(
-                            "%s: scout report noted enemy units, ignoring", vid
+                            "%s: raport zwiadu odnotował wrogie jednostki, ignorowanie", vid
                         )
                         return False
                 self.logger.info(
-                    "%s: scout report noted no enemy units, attacking", vid
+                    "%s: raport zwiadu odnotował brak wrogich jednostek, atakowanie", vid
                 )
                 return True
 
             self.logger.debug(
-                "%s will be ignored for attack because unsafe, set safe:true to override", vid
+                "%s będzie ignorowana do ataku, ponieważ niebezpieczna, ustaw safe:true aby nadpisać", vid
             )
             return False
 
@@ -372,12 +372,12 @@ class AttackManager:
                 total_loot += int(res[x])
 
             if res_left and total_loot > 100:
-                self.logger.debug(f"Draining farm of resources! Sending attack to get {res}.")
+                self.logger.debug(f"Wyczerpuję zasoby farmy! Wysyłam atak, aby pobrać {res}.")
                 min_time = int(self.farm_high_prio_wait / 2)
 
         if cache_entry["last_attack"] + min_time > int(time.time()):
             self.logger.debug(
-                "%s will be ignored because of previous attack (%d sec delay between attacks)",
+                "%s będzie ignorowana z powodu poprzedniego ataku (opóźnienie %d sek między atakami)",
                 vid, min_time
             )
             return False
@@ -394,7 +394,7 @@ class AttackManager:
 
     def attack(self, vid, troops=None):
         """
-        Send a TW attack
+        Wyślij atak TW
         """
         url = f"game.php?village={self.village_id}&screen=place&target={vid}"
         pre_attack = self.wrapper.get_url(url)
@@ -422,11 +422,11 @@ class AttackManager:
         if self.forced_peace_time:
             now = datetime.now()
             if now + timedelta(seconds=duration) > self.forced_peace_time:
-                self.logger.info("Attack would arrive after the forced peace timer, not sending attack!")
+                self.logger.info("Atak dotarłby po wymuszonym czasie pokoju, nie wysyłam ataku!")
                 return "forced_peace"
 
         self.logger.info(
-            "[Attack] %s -> %s duration %f.1 h", self.village_id, vid, duration / 3600
+            "[Atak] %s -> %s czas trwania %f.1 h", self.village_id, vid, duration / 3600
         )
 
         confirm_data = {}
@@ -437,7 +437,7 @@ class AttackManager:
             confirm_data[k] = v
         new_data = {"building": "main", "h": self.wrapper.last_h}
         confirm_data.update(new_data)
-        # The extractor doesn't like the empty cb value, and mistakes its value for x. So I add it here.
+        # Ekstraktor nie lubi pustej wartości cb i myli jej wartość z x. Więc dodaję ją tutaj.
         if "x" not in confirm_data:
             confirm_data["x"] = x
 
@@ -459,13 +459,13 @@ class AttackManager:
         page = self.wrapper.get_url(url)
         if not page:
             return
-        # capture Accountmanager AJAX endpoints if available for direct farm sends
+        # przechwyć endpointy Accountmanager AJAX, jeśli dostępne do bezpośredniego wysyłania farm
         try:
             txt = page.text if hasattr(page, 'text') else str(page)
             m = re.search(r"Accountmanager\.send_units_link\s*=\s*'([^']+)'", txt)
             if m:
                 link = m.group(1)
-                # normalize leading slash
+                # normalizuj wiodący ukośnik
                 if link.startswith('/'):
                     link = link[1:]
                 self.send_units_link = link
@@ -480,19 +480,19 @@ class AttackManager:
         loot_limit = Extractor.farm_assistant_loot_limit(page)
         if loot_limit:
             self.farm_assistant_loot_limit = loot_limit
-        # if no targets found, dump the page for inspection
+        # jeśli nie znaleziono celów, zrzuć stronę do inspekcji
         if not self.farm_assistant_targets:
             try:
                 FileManager.save_text_file(page.text if hasattr(page, 'text') else str(page), f"cache/debug/farm_assistant_{self.village_id}.html")
-                self.logger.debug("Saved farm assistant page to cache/debug/farm_assistant_%s.html for inspection", self.village_id)
+                self.logger.debug("Zapisano stronę farm assistenta do cache/debug/farm_assistant_%s.html do inspekcji", self.village_id)
             except Exception:
                 pass
-        # debug: log how many targets were found on first page
+        # debug: zaloguj ile celów znaleziono na pierwszej stronie
         try:
-            self.logger.debug("Loaded %d farm assistant targets from %s", len(self.farm_assistant_targets), url)
-            self.logger.debug("Loaded %d farm assistant templates from %s", len(self.farm_assistant_templates), url)
-            self.logger.debug("Loaded %d farm assistant available units from %s", len(self.farm_assistant_units), url)
-            self.logger.debug("Farm assistant loot limit for %s: %s", self.village_id, self.farm_assistant_loot_limit)
+            self.logger.debug("Załadowano %d celów farm assistenta z %s", len(self.farm_assistant_targets), url)
+            self.logger.debug("Załadowano %d szablonów farm assistenta z %s", len(self.farm_assistant_templates), url)
+            self.logger.debug("Załadowano %d dostępnych jednostek farm assistenta z %s", len(self.farm_assistant_units), url)
+            self.logger.debug("Limit łupu farm assistenta dla %s: %s", self.village_id, self.farm_assistant_loot_limit)
         except Exception:
             pass
         for pagination_url in Extractor.farm_assistant_pagination(page):
@@ -501,25 +501,25 @@ class AttackManager:
                 self.farm_assistant_targets.update(Extractor.farm_assistant_targets(next_page))
                 self.farm_assistant_templates.update(Extractor.farm_assistant_templates(next_page))
                 try:
-                    self.logger.debug("Loaded %d farm assistant targets after page %s", len(self.farm_assistant_targets), pagination_url)
+                    self.logger.debug("Załadowano %d celów farm assistenta po stronie %s", len(self.farm_assistant_targets), pagination_url)
                 except Exception:
                     pass
         self.farm_assistant_targets_loaded = True
         target_keys = list(self.farm_assistant_targets.keys())
         if target_keys:
             self.logger.info(
-                "Farm assistant targets loaded for village %s: %d (%s%s)",
+                "Załadowano cele farm assistenta dla wsi %s: %d (%s%s)",
                 self.village_id,
                 len(target_keys),
                 ", ".join(target_keys[:10]),
                 "..." if len(target_keys) > 10 else "",
             )
         else:
-            self.logger.info("No farm assistant targets found for village %s on am_farm", self.village_id)
+            self.logger.info("Nie znaleziono celów farm assistenta dla wsi %s na am_farm", self.village_id)
         template_keys = list(self.farm_assistant_templates.keys())
         if template_keys:
             self.logger.debug(
-                "Farm assistant templates loaded for village %s: %d (%s%s)",
+                "Załadowano szablony farm assistenta dla wsi %s: %d (%s%s)",
                 self.village_id,
                 len(template_keys),
                 ", ".join(template_keys[:10]),
@@ -527,23 +527,23 @@ class AttackManager:
             )
         if self.farm_assistant_units:
             self.logger.debug(
-                "Farm assistant available units for village %s: %s",
+                "Dostępne jednostki farm assistenta dla wsi %s: %s",
                 self.village_id,
                 self.farm_assistant_units,
             )
         if self.farm_assistant_loot_limit:
             self.logger.debug(
-                "Farm assistant loot limit for village %s: %s",
+                "Limit łupu farm assistenta dla wsi %s: %s",
                 self.village_id,
                 self.farm_assistant_loot_limit,
             )
 
-        # Log per-target metadata counts for farm assistant targets
+        # Loguj liczbę pól metadanych dla każdego celu farm assistenta
         for vid, target in self.farm_assistant_targets.items():
             if isinstance(target, dict):
                 meta = target.get('meta', {})
                 self.logger.debug(
-                    "Farm assistant target %s meta fields processed: %d %s",
+                    "Cel farm assistenta %s przetworzone pola meta: %d %s",
                     vid,
                     len(meta),
                     sorted(meta.keys()) if isinstance(meta, dict) else meta,
@@ -554,10 +554,10 @@ class AttackManager:
         vid = str(vid)
         target = self.farm_assistant_targets.get(vid)
         if not target:
-            self.logger.debug("No farm assistant target entry for %s", vid)
+            self.logger.debug("Brak wpisu celu farm assistenta dla %s", vid)
             return None
         wall = target.get("wall", 0)
-        # Evaluate conditional rules first (if any)
+        # Najpierw oceń warunkowe reguły (jeśli istnieją)
         try:
             rules = getattr(self, 'farm_assistant_rules', []) or []
             def _cmp(op, left, right):
@@ -580,7 +580,7 @@ class AttackManager:
                 if not isinstance(rule, dict):
                     continue
                 match = True
-                # Legacy style rules using min_/max_ keys
+                # Reguły w starym stylu używające kluczy min_/max_
                 if 'min_wall' in rule and wall < int(rule.get('min_wall', 0)):
                     match = False
                 if 'max_wall' in rule and wall > int(rule.get('max_wall', 0)):
@@ -600,13 +600,13 @@ class AttackManager:
                     except Exception:
                         dist = None
 
-                # Legacy distance
+                # Stara odległość
                 if 'min_distance' in rule and (dist is None or dist < float(rule.get('min_distance'))):
                     match = False
                 if 'max_distance' in rule and (dist is None or dist > float(rule.get('max_distance'))):
                     match = False
 
-                # Legacy last_attack
+                # Stary last_attack
                 since = None
                 if 'min_last_attack' in rule or 'max_last_attack' in rule:
                     try:
@@ -621,7 +621,7 @@ class AttackManager:
                     if 'max_last_attack' in rule and (since is None or since > int(rule.get('max_last_attack', 0))):
                         match = False
 
-                # New style: field/op/value
+                # Nowy styl: field/op/value
                 if 'field' in rule and 'op' in rule and 'value' in rule:
                     field = rule.get('field')
                     op = rule.get('op')
@@ -646,7 +646,7 @@ class AttackManager:
                 if match and 'button' in rule:
                     desired = str(rule.get('button')).upper()
                     if desired in target.get('links', {}):
-                        self.logger.debug("Rule matched for %s -> using button %s (%s)", vid, desired, rule)
+                        self.logger.debug("Reguła dopasowana dla %s -> użycie przycisku %s (%s)", vid, desired, rule)
                         return desired, target['links'][desired]
         except Exception:
             pass
@@ -659,14 +659,14 @@ class AttackManager:
         for option in ["A", "B", "C"]:
             link = target["links"].get(option)
             if link and not _is_disabled(link):
-                self.logger.debug("Using farm assistant link for %s button %s -> %s", vid, option, link)
+                self.logger.debug("Użycie linku farm assistenta dla %s przycisk %s -> %s", vid, option, link)
                 return option, link
 
-        self.logger.debug("No enabled farm assistant button available for %s", vid)
+        self.logger.debug("Brak dostępnego włączonego przycisku farm assistenta dla %s", vid)
         return None
 
     def _save_farm_assistant_debug(self, vid, target, report):
-        """Save a farm assistant debug report for later analysis."""
+        """Zapisuje raport debugowania farm assistenta do późniejszej analizy."""
         filename = f"cache/debug/farm_assistant_debug_{self.village_id}_{vid}_{int(time.time())}.json"
         payload = {
             'village': self.village_id,
@@ -740,7 +740,7 @@ class AttackManager:
                     if isinstance(j, dict):
                         if j.get('error'):
                             self.logger.debug(
-                                "Farm assistant AJAX %s for %s payload %s returned error: %s",
+                                "Farm assistant AJAX %s dla %s payload %s zwrócił błąd: %s",
                                 send_url,
                                 target_vid,
                                 data,
@@ -749,7 +749,7 @@ class AttackManager:
                             continue
                         if 'success' in j and bool(j.get('success')):
                             self.logger.debug(
-                                "Triggered farm assistant AJAX %s for %s with payload %s (json success)",
+                                "Uruchomiono farm assistant AJAX %s dla %s z payloadem %s (sukces json)",
                                 send_url,
                                 target_vid,
                                 data,
@@ -757,7 +757,7 @@ class AttackManager:
                             return True
                         if 'data' in j:
                             self.logger.debug(
-                                "Triggered farm assistant AJAX %s for %s with payload %s (json data)",
+                                "Uruchomiono farm assistant AJAX %s dla %s z payloadem %s (dane json)",
                                 send_url,
                                 target_vid,
                                 data,
@@ -765,7 +765,7 @@ class AttackManager:
                             return True
                     if resp.status_code == 200 and not json_ok and 'error' not in (resp.text or '').lower():
                         self.logger.debug(
-                            "Triggered farm assistant AJAX %s for %s with payload %s (text success)",
+                            "Uruchomiono farm assistant AJAX %s dla %s z payloadem %s (sukces tekstowy)",
                             send_url,
                             target_vid,
                             data,
@@ -773,7 +773,7 @@ class AttackManager:
                         return True
                     if resp.status_code == 200 and json_ok:
                         self.logger.debug(
-                            "Farm assistant AJAX %s for %s payload %s returned non-success json: %s",
+                            "Farm assistant AJAX %s dla %s payload %s zwrócił json bez sukcesu: %s",
                             send_url,
                             target_vid,
                             data,
@@ -788,7 +788,7 @@ class AttackManager:
                             'error': str(e),
                         })
                     self.logger.debug(
-                        "Farm assistant AJAX request failed for %s with payload %s: %s",
+                        "Żądanie farm assistant AJAX nie powiodło się dla %s z payloadem %s: %s",
                         target_vid,
                         data,
                         e,
@@ -848,22 +848,22 @@ class AttackManager:
                         debug_capture.append(entry)
                     if isinstance(j, dict):
                         if j.get('error'):
-                            self.logger.debug("Farm assistant URL %s for %s returned error %s", url, target_vid, j)
+                            self.logger.debug("URL farm assistenta %s dla %s zwrócił błąd %s", url, target_vid, j)
                             continue
                         if 'success' in j and bool(j.get('success')):
-                            self.logger.debug("Triggered farm assistant URL %s for %s (json success)", url, target_vid)
+                            self.logger.debug("Uruchomiono URL farm assistenta %s dla %s (sukces json)", url, target_vid)
                             return True
                         if 'data' in j:
-                            self.logger.debug("Triggered farm assistant URL %s for %s (json data)", url, target_vid)
+                            self.logger.debug("Uruchomiono URL farm assistenta %s dla %s (dane json)", url, target_vid)
                             return True
                     if 'ok' in text.lower() or 'success' in text.lower():
-                        self.logger.debug("Triggered farm assistant URL %s for %s (text ok)", url, target_vid)
+                        self.logger.debug("Uruchomiono URL farm assistenta %s dla %s (tekst ok)", url, target_vid)
                         return True
                 else:
                     if debug_capture is not None:
-                        entry['note'] = 'ignored non-AJAX GET'
+                        entry['note'] = 'zignorowano nie-AJAX GET'
                         debug_capture.append(entry)
-                    self.logger.debug("Ignored non-AJAX GET %s for %s (not treated as send)", url, target_vid)
+                    self.logger.debug("Zignorowano nie-AJAX GET %s dla %s (nie traktowane jako wysyłka)", url, target_vid)
                     continue
             except Exception as e:
                 if debug_capture is not None:
@@ -878,9 +878,9 @@ class AttackManager:
     def attack_with_assistant(self, vid, troops=None):
         res = self.get_farm_assistant_link(vid)
         if not res:
-            self.logger.info("Brak dostępnego farm assistant linku dla %s, nie można wysłać ataku", vid)
+            self.logger.info("Brak dostępnego linku farm assistenta dla %s, nie można wysłać ataku", vid)
             return False
-        # farm assistant helper moved to a class method
+        # pomocnik farm assistenta przeniesiony do metody klasy
 
         button, link = res
         target = self.farm_assistant_targets.get(str(vid)) if hasattr(self, 'farm_assistant_targets') else None
@@ -902,7 +902,7 @@ class AttackManager:
             coord_text = str(vid)
 
         if not buttons:
-            self.logger.info("Brak dostępnych przycisków farm assistant dla %s, nie można wysłać ataku", coord_text)
+            self.logger.info("Brak dostępnych przycisków farm assistenta dla %s, nie można wysłać ataku", coord_text)
             return False
 
         send_attempted = False
@@ -921,9 +921,9 @@ class AttackManager:
                     )
                     continue
 
-            self.logger.work("Próba ataku wioski %s przy użyciu %s", coord_text, btn)
+            self.logger.info("Próba ataku wioski %s przy użyciu %s", coord_text, btn)
             self.logger.debug(
-                "Trying farm assistant button %s for %s, target meta fields: %d %s",
+                "Próba przycisku farm assistenta %s dla %s, pola meta celu: %d %s",
                 btn,
                 vid,
                 len(target.get('meta', {}) if isinstance(target, dict) else {}),
@@ -953,13 +953,13 @@ class AttackManager:
             return False
 
         if self.farm_assistant:
-            self.logger.debug("Unable to trigger farm assistant action for %s via am_farm patterns", vid)
+            self.logger.debug("Nie można uruchomić akcji farm assistenta dla %s przez wzorce am_farm", vid)
             return False
 
-        # fallback: use the usable place link (old behaviour)
+        # awaryjnie: użyj użytecznego linku place (stare zachowanie)
         usable = link.get('usable') if isinstance(link, dict) else link
         pre_attack = self.wrapper.get_url(usable)
-        self.logger.debug("Fetched assistant pre-attack page for %s via %s", vid, usable)
+        self.logger.debug("Pobrano stronę pre-ataku farm assistenta dla %s przez %s", vid, usable)
         if not pre_attack:
             return False
         pre_data = {}

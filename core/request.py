@@ -73,7 +73,7 @@ class WebWrapper:
             headers = self.headers
         try:
             res = self.web.get(url=url, headers=headers)
-            self.logger.get("GET %s [%d]", url, res.status_code)
+            self.logger.debug("GET %s [%d]", url, res.status_code)
             self.post_process(res)
             if 'data-bot-protect="forced"' in res.text:
                 self.logger.warning("Ochrona przed botami uruchomiona! nie można kontynuować")
@@ -160,7 +160,7 @@ class WebWrapper:
 
     def get_action(self, village_id, action):
         """
-        Runs an action on a specific village
+        Uruchamia akcję w konkretnej wsi
         """
         url = "game.php?village=%s&screen=%s" % (village_id, action)
         response = self.get_url(url)
@@ -214,7 +214,7 @@ class WebWrapper:
 
     def get_api_action(self, village_id, action, params={}, data={}):
         """
-        Symuluje akcję API będącą uruchamianą
+        Symuluje uruchamianą akcję API
         """
         custom = dict(self.headers)
         custom['Accept'] = "application/json, text/javascript, */*; q=0.01"

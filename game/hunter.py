@@ -19,8 +19,8 @@ class Hunter:
     window = 120
     logger = logging.getLogger("Hunter")
     """
-    attack 1: village 2: {axe: 12500, light: 1250, ram:100} 2000 sec
-    attack 2: village 1: {axe: 7500, light: 2000, snob: 1} 4300 sec
+    atak 1: wieś 2: {axe: 12500, light: 1250, ram:100} 2000 sek
+    atak 2: wieś 1: {axe: 7500, light: 2000, snob: 1} 4300 sek
     """
 
     def nearing_schedule_window(self):

@@ -35,7 +35,7 @@ class SnobManager:
         """
         self.wrapper = wrapper
         self.village_id = village_id
-        self.logger = logging.getLogger(f"Snob:{self.village_id}")
+        self.logger = logging.getLogger(f"Szlachcic:{self.village_id}")
 
     def need_reserve(self, text):
         """
@@ -61,7 +61,7 @@ class SnobManager:
 
     def attempt_recruit(self, amount):
         """
-        Tries to recruit a new snob
+        Próbuje zrekrutować nową szlachtę
         """
         result = self.wrapper.get_action(action="snob", village_id=self.village_id)
         if '"id":"coin"' in result.text:
@@ -76,7 +76,7 @@ class SnobManager:
             nres = self.need_reserve(result.text)
             if nres > 0:
                 self.logger.debug(
-                    "Not enough resources available, still %d needed, attempting storage", nres
+                    "Niewystarczające zasoby, wciąż potrzeba %d, próba magazynowania", nres
                 )
                 cres = (
                     self.storage_item(result.text)
@@ -86,13 +86,13 @@ class SnobManager:
                 if cres:
                     return self.attempt_recruit(amount)
                 self.is_incomplete = True
-                self.logger.debug("Not enough resources available")
+                self.logger.debug("Niewystarczające zasoby")
                 return False
         self.is_incomplete = False
         r_num = int(can_recruit.group(1))
         if r_num == 0:
             self.logger.debug(
-                "No more snobs available, awaiting snob creating, snob death or village loss"
+                "Brak dostępnej szlachty, oczekiwanie na stworzenie szlachty, jej śmierć lub utratę wsi"
             )
             return False
         train_snob_url = f"game.php?village={self.village_id}&screen=snob&action=train&h={self.wrapper.last_h}"
@@ -101,12 +101,12 @@ class SnobManager:
 
     def storage_item(self, result):
         """
-        Tries to store resources for future snob creation
+        Próbuje odłożyć zasoby na przyszłe tworzenie szlachty
         """
         storage_re = re.search(r"train\.storage_item = (\{.+?})", result)
         if not storage_re:
             self.logger.warning(
-                "Snob recruit is called but storage data not on page, error?"
+                "Rekrutacja szlachty jest wywoływana, ale danych magazynu nie ma na stronie, błąd?"
             )
             return False
         raw_coin = storage_re.group(1)
@@ -123,12 +123,12 @@ class SnobManager:
 
     def coin_item(self, result):
         """
-        Tries to create a new gold coin
+        Próbuje stworzyć nową złotą monetę
         """
         storage_re = re.search(r"train\.storage_item = (\{.+?})", result)
         if not storage_re:
             self.logger.warning(
-                "Snob recruit is called but storage data not on page, error?"
+                "Rekrutacja szlachty jest wywoływana, ale danych magazynu nie ma na stronie, błąd?"
             )
             return False
         raw_coin = storage_re.group(1)
@@ -145,8 +145,8 @@ class SnobManager:
 
     def has_enough(self, build_item):
         """
-        Checks if there are enough resources available
-        If not, they will be requested from resources
+        Sprawdza, czy dostępne są wystarczające zasoby
+        Jeśli nie, zostaną zażądane z zasobów
         """
         r = True
         if build_item["wood"] > self.resman.actual["wood"]:
@@ -165,7 +165,7 @@ class SnobManager:
 
     def run(self):
         """
-        Run the snob updater
+        Uruchom aktualizator szlachty
         """
         if not self.can_snob:
             return False
@@ -178,4 +178,4 @@ class SnobManager:
             current = int(self.troop_manager.total_troops["snob"])
             if current < self.wanted:
                 return self.attempt_recruit(amount=self.wanted - current)
-            self.logger.info("Snob up-to-date (%d/%d)", current, self.wanted)
+            self.logger.info("Szlachta aktualna (%d/%d)", current, self.wanted)

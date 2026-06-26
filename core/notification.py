@@ -20,6 +20,9 @@ class _Notification:
             self.bot = telegram.Bot(token=self.token)
 
     def get_config(self):
+        """
+        Wczytuje konfigurację powiadomień z pliku config.json
+        """
         try:
             config = FileManager.load_json_file("config.json")
         except InvalidJSONException:

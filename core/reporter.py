@@ -31,7 +31,7 @@ class RemoteReporter:
 
     def get_config(self, connection, village_id, action, data):
         """
-        Pobiera konfiguracjaę z raportera
+        Pobiera konfigurację z raportera
         """
         return
 
@@ -48,7 +48,7 @@ class FileReporter:
     """
     def report(self, connection, village_id, action, data):
         """
-        Writes an entry to a report file
+        Zapisuje wpis do pliku raportu
         """
         with open(connection, 'a', encoding="utf-8") as f:
             f.write("%d - %s - %s - %s\n" % (time.time(), village_id, action, data))
@@ -56,32 +56,32 @@ class FileReporter:
 
     def add_data(self, connection, village_id, data_type, data):
         """
-        Unused for this type
+        Nieużywane dla tego typu
         """
         return
 
     def get_config(self, connection, village_id, action, data):
         """
-        Unused for this type
+        Nieużywane dla tego typu
         """
         return
 
     def setup(self, connection):
         """
-        Make sure the logfile exists
+        Upewnia się, że plik logów istnieje
         """
         with open(connection, 'w', encoding="utf-8") as f:
-            f.write("Starting bot at %d\n" % time.time())
+            f.write("Uruchomiono bota o %d\n" % time.time())
 
 
 class MySQLReporter(RemoteReporter):
     """
-    Uses a (remote) MySQL server for logging
+    Używa (zdalnego) serwera MySQL do logowania
     """
     @staticmethod
     def connection_from_object(cobj):
         """
-        Fetches variables from a connection config
+        Pobiera zmienne z konfiguracji połączenia
         """
         return pymysql.connect(
             host=cobj['host'],
@@ -92,7 +92,7 @@ class MySQLReporter(RemoteReporter):
 
     def report(self, connection, village_id, action, data):
         """
-        Add a report entry
+        Dodaje wpis raportu
         """
         con = MySQLReporter.connection_from_object(connection)
         cur = con.cursor()
@@ -104,7 +104,7 @@ class MySQLReporter(RemoteReporter):
 
     def add_data(self, connection, village_id, data_type, data):
         """
-        Saves data to a remote MySQL server
+        Zapisuje dane na zdalnym serwerze MySQL
         """
         con = self.connection_from_object(connection)
         cur = con.cursor()
@@ -128,7 +128,7 @@ class MySQLReporter(RemoteReporter):
 
     def setup(self, connection):
         """
-        Creates the initial database tables
+        Tworzy początkowe tabele bazy danych
         """
         try:
             con = self.connection_from_object(connection)
@@ -164,7 +164,7 @@ class MySQLReporter(RemoteReporter):
 
 class ReporterObject:
     """
-    Base reporting object for a remote/local logger
+    Bazowy obiekt raportujący dla zdalnego/lokalnego loggera
     """
     enabled = False
     object = None
@@ -173,7 +173,7 @@ class ReporterObject:
 
     def __init__(self, enabled=False, connection_string=None):
         """
-        Detects reporter configuration
+        Wykrywa konfigurację raportera
         """
         if enabled and connection_string:
             self.enabled = True
@@ -181,11 +181,11 @@ class ReporterObject:
 
     def setup(self, connection_string):
         """
-        Fetchers the used reporter
+        Pobiera używany reporter
         """
         if connection_string.startswith('mysql://'):
             if not HAS_PYMYSQL:
-                self.logger.error("pymysql is required for MYSQL logging\nYou can install it using pip install pymysql")
+                self.logger.error("pymysql jest wymagany do logowania MYSQL\nZainstaluj go używając pip install pymysql")
                 self.enabled = False
                 return
 
@@ -200,9 +200,9 @@ class ReporterObject:
             self.connection = {"host": host, "port": port, "user": username, "password": password, "database": database}
             self.object = MySQLReporter()
             if self.object.setup(self.connection):
-                self.logger.info("MySQL set-up complete")
+                self.logger.info("Konfiguracja MySQL zakończona pomyślnie")
             else:
-                self.logger.info("Unable to set-up MySQL logging, disabling!")
+                self.logger.info("Nie można skonfigurować logowania MySQL, wyłączam!")
                 self.enabled = False
         elif connection_string.startswith('file://'):
             outfile = connection_string.split("://")[1]
@@ -215,7 +215,7 @@ class ReporterObject:
 
     def report(self, village_id, action, data):
         """
-        Run the report function on the installed reporter
+        Uruchamia funkcję raportującą zainstalowanego raportera
         """
         if self.enabled:
             return self.object.report(self.connection, village_id, action, data)
@@ -223,7 +223,7 @@ class ReporterObject:
 
     def add_data(self, village_id, data_type, data):
         """
-        Run the add_data function on the installed reporter
+        Uruchamia funkcję add_data zainstalowanego raportera
         """
         if self.enabled:
             return self.object.add_data(self.connection, village_id, data_type, data)
@@ -231,7 +231,7 @@ class ReporterObject:
 
     def get_config(self, village_id, action, data):
         """
-        Run the get_config function on the installed reporter
+        Uruchamia funkcję get_config zainstalowanego raportera
         """
         if self.enabled:
             return self.object.get_config(self.connection, village_id, action, data)

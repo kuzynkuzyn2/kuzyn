@@ -37,8 +37,8 @@ def check_update():
         ).json()
         if parsed["build"]["version"] != get_remote_version["build"]["version"]:
             logging.warning(
-                "Dostepna jest nowa wersja bota.\n"
-                "Pobierz najnowszą wydanie z::\n"
+                "Dostępna jest nowa wersja bota.\n"
+                "Pobierz najnowsze wydanie z:\n"
                 "https://github.com/stefan2200/TWB"
             )
             time.sleep(5)

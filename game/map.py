@@ -1,5 +1,5 @@
 """
-Zarządzanie mapą, prośę nie czytaj tego kodu.
+Zarządzanie mapą, proszę nie czytać tego kodu.
 """
 import logging
 import math
@@ -11,7 +11,7 @@ from core.filemanager import FileManager
 
 class Map:
     """
-    Klasa do zarządzania światem wokolico Ciebie
+    Klasa do zarządzania światem wokół Ciebie
     """
     wrapper = None
     village_id = None
@@ -24,7 +24,7 @@ class Map:
 
     def __init__(self, wrapper=None, village_id=None):
         """
-        Tworzy pliki mapy
+        Tworzy obiekt mapy
         """
         self.wrapper = wrapper
         self.village_id = village_id
@@ -45,7 +45,7 @@ class Map:
                 x = int(data["x"])
                 y = int(data["y"])
                 vdata = data["villages"]
-                # Fix broken parsing                 
+                # Napraw uszkodzone parsowanie                 
                 if type(vdata) is dict:
                     cdata = [{}] * 20
                     for k, v in vdata.items():
@@ -105,7 +105,7 @@ class Map:
                 ]
         if not self.map_data or not self.villages:
             logging.warning(
-                "Error reading map state for village %s, farming might not work properly",
+                "Błąd odczytu stanu mapy dla wsi %s, farmienie może nie działać prawidłowo",
                 self.village_id
             )
             return False
@@ -113,14 +113,14 @@ class Map:
 
     def build_cache_entry(self, location, entry):
         """
-        Builds a cache entry based on their weird data structure
+        Buduje wpis cache na podstawie ich dziwnej struktury danych
         """
         vid = entry[0]
         name = entry[2]
         try:
             points = int(entry[3].replace(".", ""))
         except ValueError:
-            # Breaks farming logic on event villages
+            # Przerywa logikę farmienia na wioskach eventowych
             return
         player = entry[4]
         bonus = entry[6]
@@ -148,14 +148,14 @@ class Map:
 
     def in_cache(self, vid):
         """
-        Checks if a village is already in the village cache
+        Sprawdza, czy wieś jest już w pamięci podręcznej wiosek
         """
         entry = MapCache.get_cache(village_id=vid)
         return entry
 
     def get_dist(self, ext_loc):
         """
-        Calculates distance from current village to coords
+        Oblicza odległość od bieżącej wsi do współrzędnych
         """
         distance = math.sqrt(
             ((self.my_location[0] - ext_loc[0]) ** 2)
@@ -166,18 +166,18 @@ class Map:
 
 class MapCache:
     """
-    Holds a cache of all found villages within a certain distance
+    Przechowuje pamięć podręczną wszystkich znalezionych wiosek w określonej odległości
     """
     @staticmethod
     def get_cache(village_id):
         """
-        Get data from the cache
+        Pobiera dane z pamięci podręcznej
         """
         return FileManager.load_json_file(f"cache/villages/{village_id}.json")
 
     @staticmethod
     def set_cache(village_id, entry):
         """
-        Creates or updates a cache entry
+        Tworzy lub aktualizuje wpis w pamięci podręcznej
         """
         FileManager.save_json_file(entry, f"cache/villages/{village_id}.json")

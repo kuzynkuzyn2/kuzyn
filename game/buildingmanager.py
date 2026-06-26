@@ -1,5 +1,5 @@
 """
-Zarządza menedżerem zarządzania budynkami
+Zarządza menedżerem budynków
 """
 import logging
 import random
@@ -60,7 +60,7 @@ class BuildingManager:
 
     def start_update(self, build=False, set_village_name=None):
         """
-        Start a building manager run
+        Uruchamia cykl menedżera budynków
         """
         main_data = self.wrapper.get_action(village_id=self.village_id, action="main")
         self.game_state = Extractor.game_state(main_data)
@@ -77,7 +77,7 @@ class BuildingManager:
         if self.resman:
             self.resman.update(self.game_state)
             if "building" in self.resman.requested:
-                # new run, remove request
+                # nowy przebieg, usuń żądanie
                 self.resman.requested["building"] = {}
         if set_village_name and vname != set_village_name:
             self.wrapper.post_url(
@@ -100,23 +100,23 @@ class BuildingManager:
             self.waits_building = []
         if self.is_queued():
             self.logger.info(
-                "No build operation was executed: queue full, %d left", len(self.queue)
+                "Nie wykonano żadnej operacji budowy: kolejka pełna, pozostało %d", len(self.queue)
             )
             return False
         if not build:
-            self.logger.info("Build mode disabled for this run, skipping construction actions")
+            self.logger.info("Tryb budowania wyłączony dla tego przebiegu, pomijanie akcji budowy")
             return False
 
         if existing_queue != 0 and existing_queue != len(self.waits):
             if existing_queue > 1:
                 self.logger.warning(
-                    "Building queue out of sync, waiting until %d manual actions are finished!",
+                    "Kolejka budowy niezsynchronizowana, oczekiwanie na zakończenie %d ręcznych akcji!",
                     existing_queue
                 )
                 return True
             else:
                 self.logger.info(
-                    "Just 1 manual action left, trying to queue next building"
+                    "Pozostała tylko 1 ręczna akcja, próba zakolejkowania następnego budynku"
                 )
 
         if existing_queue == 1:
@@ -127,11 +127,11 @@ class BuildingManager:
             result = self.get_next_building_action()
             if not result:
                 self.logger.info(
-                    "No build more operations where executed (%d current, %d left)",
+                    "Nie wykonano dalszych operacji budowy (%d bieżących, %d pozostało)",
                     len(self.waits), len(self.queue)
                 )
                 return False
-        # Check for instant build after putting something in the queue
+        # Sprawdź natychmiastowe budowanie po dodaniu czegoś do kolejki
         main_data = self.wrapper.get_action(village_id=self.village_id, action="main")
         if self.complete_actions(main_data.text):
             self.can_build_three_min = True
@@ -140,8 +140,8 @@ class BuildingManager:
 
     def complete_actions(self, text):
         """
-        Automatically finish a building if the world allows it
-        TODO: add premium options to lower build costs
+        Automatycznie kończy budynek, jeśli świat na to pozwala
+        TODO: dodać opcje premium obniżające koszty budowy
         """
         res = re.search(
             r'(?s)(\d+),\s*\'BuildInstantFree.+?data-available-from="(\d+)"', text
@@ -150,14 +150,14 @@ class BuildingManager:
             quickbuild_url = f"game.php?village={self.village_id}&screen=main&ajaxaction=build_order_reduce"
             quickbuild_url += f"&h={self.wrapper.last_h}&id={res.group(1)}&destroy=0"
             result = self.wrapper.get_url(quickbuild_url)
-            self.logger.debug("Quick build action was completed, re-running function")
+            self.logger.debug("Szybka budowa zakończona, ponowne uruchomienie funkcji")
             return result
         return False
 
     def put_wait(self, wait_time):
         """
-        Puts an item in the active building queue
-        Blocking entries until the building is completed
+        Umieszcza element w aktywnej kolejce budowy
+        Blokuje wpisy do czasu zakończenia budowy
         """
         self.is_queued()
         if len(self.waits) == 0:
@@ -168,12 +168,12 @@ class BuildingManager:
             lastw = self.waits[-1]
             f_time = lastw + wait_time
             self.waits.append(f_time)
-            self.logger.debug("Building finish time: %s", str(f_time))
+            self.logger.debug("Czas zakończenia budowy: %s", str(f_time))
             return f_time
 
     def is_queued(self):
         """
-        Checks if a building is already queued
+        Sprawdza, czy budynek jest już w kolejce
         """
         if len(self.waits) == 0:
             return False
@@ -184,7 +184,7 @@ class BuildingManager:
 
     def has_enough(self, build_item):
         """
-        Checks if there are enough resources to queue a building
+        Sprawdza, czy jest wystarczająco zasobów, aby zakolejkować budynek
         """
         if (
                 build_item["iron"] > self.resman.storage
@@ -200,7 +200,7 @@ class BuildingManager:
             ):
                 self.queue.insert(0, build_data)
                 self.logger.info(
-                    "Adding storage in front of queue because queue item exceeds storage capacity"
+                    "Dodawanie magazynu na początek kolejki, ponieważ element kolejki przekracza pojemność magazynu"
                 )
 
         r = True
@@ -227,14 +227,14 @@ class BuildingManager:
             r = False
         if not r:
             self.logger.info(
-                "Insufficient building resources, requested updates: %s",
+                "Niewystarczające zasoby do budowy, żądane aktualizacje: %s",
                 self.resman.requested,
             )
         return r
 
     def get_level(self, building):
         """
-        Gets a building level
+        Pobiera poziom budynku
         """
         if building not in self.levels:
             return 0
@@ -242,7 +242,7 @@ class BuildingManager:
 
     def readable_ts(self, seconds):
         """
-        Makes stuff more human
+        Robi rzeczy bardziej czytelnymi dla człowieka
         """
         seconds -= time.time()
         seconds = seconds % (24 * 3600)
@@ -255,15 +255,15 @@ class BuildingManager:
 
     def get_next_building_action(self, index=0):
         """
-        Calculates the next best possible building action
+        Oblicza następną najlepszą możliwą akcję budowania
         """
         if index >= len(self.queue) or index >= self.max_lookahead:
-            self.logger.debug("Not building anything because insufficient resources or index out of range")
+            self.logger.debug("Nic nie buduję, ponieważ niewystarczające zasoby lub indeks poza zakresem")
             return False
 
         queue_check = self.is_queued()
         if queue_check:
-            self.logger.info("Not building because of queued items: %s", self.waits)
+            self.logger.info("Nie buduję z powodu elementów w kolejce: %s", self.waits)
             return False
 
         if self.resman and self.resman.in_need_of("pop"):
@@ -275,7 +275,7 @@ class BuildingManager:
                     and int(self.levels["farm"]) != 30
             ):
                 self.queue.insert(0, build_data)
-                self.logger.info("Adding farm in front of queue because low on pop")
+                self.logger.info("Dodawanie farmy na początek kolejki, ponieważ mało populacji")
                 return self.get_next_building_action(0)
 
         if len(self.queue):
@@ -286,19 +286,19 @@ class BuildingManager:
                 self.queue.pop(index)
                 return self.get_next_building_action(index)
             if entry not in self.costs:
-                self.logger.info("Skipping %s because not yet available", entry)
+                self.logger.info("Pomijanie %s, ponieważ jeszcze niedostępne", entry)
                 return self.get_next_building_action(index + 1)
             check = self.costs[entry]
             if "max_level" in check and min_lvl > check["max_level"]:
                 self.logger.info(
-                    "Removing entry %s because max_level exceeded", entry
+                    "Usuwanie wpisu %s, ponieważ przekroczono max_level", entry
                 )
                 self.queue.pop(index)
                 return self.get_next_building_action(index)
             if check["can_build"] and self.has_enough(check) and "build_link" in check:
                 queue = self.put_wait(check["build_time"])
                 self.logger.info(
-                    "Building %s %d -> %d (finishes: %s)"
+                    "Budowanie %s %d -> %d (zakończy się: %s)"
                     % (
                         entry,
                         self.levels[entry],
@@ -309,7 +309,7 @@ class BuildingManager:
                 self.wrapper.reporter.report(
                     self.village_id,
                     "TWB_BUILD",
-                    "Building %s %d -> %d (finishes: %s)"
+                    "Budowanie %s %d -> %d (zakończy się: %s)"
                     % (
                         entry,
                         self.levels[entry],
@@ -320,20 +320,20 @@ class BuildingManager:
                 self.levels[entry] += 1
                 response = self.wrapper.get_url(check["build_link"].replace("amp;", ""))
                 if self.can_build_three_min:
-                    # Wait some random time
+                    # Poczekaj przez losowy czas
                     time.sleep(random.randint(3, 7) / 10)
                     result = self.complete_actions(text=response.text)
                     if result:
                         # Remove first item from the queue
                         self.queue.pop(0)
                         index -= 1
-                    # Building was completed, queueing another
+                    # Budowanie zakończone, kolejkowanie następnego
                 self.game_state = Extractor.game_state(response)
                 self.costs = Extractor.building_data(response)
-                # Trigger function again because game state is changed
+                # Wyzwól funkcję ponownie, ponieważ stan gry się zmienił
                 self.costs = self.create_update_links(self.costs)
                 if self.resman and "building" in self.resman.requested:
-                    # Build something, remove request
+                    # Zbuduj coś, usuń żądanie
                     self.resman.requested["building"] = {}
                 return True
             else:

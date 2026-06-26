@@ -77,7 +77,7 @@ class TroopManager:
 
     def update_totals(self):
         """
-        Updates the total amount of recruited units
+        Aktualizuje całkowitą liczbę zrekrutowanych jednostek
         """
         main_data = self.wrapper.get_action(
             action="overview", village_id=self.village_id
@@ -91,7 +91,7 @@ class TroopManager:
 
         if not self.logger:
             village_name = self.game_data["village"]["name"]
-            self.logger = logging.getLogger(f"Recruitment: {village_name}")
+            self.logger = logging.getLogger(f"Rekrutacja: {village_name}")
         self.troops = {}
 
         get_all = (
@@ -104,7 +104,7 @@ class TroopManager:
             self.troops[k] = v
 
         self.logger.debug("Units in village: %s", str(self.troops))
-        self.logger.info("Recruitment refresh started for village %s", self.village_id)
+        self.logger.info("Rozpoczęto odświeżanie rekrutacji dla wsi %s", self.village_id)
 
         if not self.can_recruit:
             return
@@ -120,17 +120,17 @@ class TroopManager:
 
     def start_update(self, building="barracks", disabled_units=[]):
         """
-        Starts the unit update for a building
+        Rozpoczyna aktualizację jednostek dla budynku
         """
         if self.wait_for[self.village_id][building] > time.time():
             human_ts = self.readable_ts(self.wait_for[self.village_id][building])
             self.logger.info(
-                "%s still busy for %s",
+                "%s nadal zajęty przez %s",
                 building, human_ts
             )
             return False
 
-        self.logger.info("Starting recruitment update for %s", building)
+        self.logger.info("Rozpoczęcie aktualizacji rekrutacji dla %s", building)
         run_selection = list(self.wanted[building].keys())
         if self.randomize_unit_queue:
             random.shuffle(run_selection)
@@ -155,13 +155,13 @@ class TroopManager:
                 ):
                     return True
 
-        self.logger.info("Recruitment:%s up-to-date", building)
+        self.logger.info("Rekrutacja: %s aktualna", building)
         return False
 
     def get_min_possible(self, entry):
         """
-        Calculates which units are needed the most
-        To get some balance of the total amount
+        Oblicza, które jednostki są najbardziej potrzebne
+        Aby uzyskać pewną równowagę całkowitej ilości
         """
         return min(
             [
@@ -180,7 +180,7 @@ class TroopManager:
 
     def get_template_action(self, levels):
         """
-        Read data from templates and determine the troops based op building progression
+        Odczytuje dane z szablonów i określa wojska na podstawie progresji budynków
         """
         last = None
         wanted_upgrades = {}
@@ -205,34 +205,34 @@ class TroopManager:
 
     def research_time(self, time_str):
         """
-        Calculates unit research time
+        Oblicza czas badania jednostki
         """
         parts = [int(x) for x in time_str.split(":")]
         return parts[2] + (parts[1] * 60) + (parts[0] * 60 * 60)
 
     def attempt_upgrade(self):
         """
-        Attempts to upgrade or research a (new) unit type
+        Próbuje ulepszyć lub zbadać (nowy) typ jednostki
         """
-        self.logger.debug("Managing Upgrades")
+        self.logger.debug("Zarządzanie ulepszeniami")
         if self._research_wait > time.time():
             self.logger.debug(
-                "Smith still busy for %d seconds", int(self._research_wait - time.time())
+                "Kuźnia zajęta przez %d sekund", int(self._research_wait - time.time())
             )
             return
         unit_levels = self.wanted_levels
         if not unit_levels:
-            self.logger.debug("Not upgrading because nothing is requested")
+            self.logger.debug("Bez ulepszania, ponieważ nic nie jest żądane")
             return
         result = self.wrapper.get_action(village_id=self.village_id, action="smith")
         smith_data = Extractor.smith_data(result)
         if not smith_data:
-            self.logger.debug("Error reading smith data")
+            self.logger.debug("Błąd odczytu danych kuźni")
             return False
         for unit_type in unit_levels:
             if not smith_data or unit_type not in smith_data["available"]:
                 self.logger.warning(
-                    "Unit %s does not appear to be available or smith not built yet", unit_type
+                    "Jednostka %s nie wydaje się dostępna lub kuźnia nie jest jeszcze zbudowana", unit_type
                 )
                 continue
             wanted_level = unit_levels[unit_type]
@@ -246,9 +246,9 @@ class TroopManager:
             ):
                 if "research_error" in data and data["research_error"]:
                     self.logger.debug(
-                        "Skipping research of %s because of research error", unit_type
+                        "Pomijanie badania %s z powodu błędu badania", unit_type
                     )
-                    # Add needed resources to res manager?
+                    # Dodać potrzebne zasoby do menedżera zasobów?
                     r = True
                     if data["wood"] > self.game_data["village"]["wood"]:
                         req = data["wood"] - self.game_data["village"]["wood"]
@@ -263,24 +263,24 @@ class TroopManager:
                         self.resman.request(source="research", resource="iron", amount=req)
                         r = False
                     if not r:
-                        self.logger.debug("Research needs resources")
+                        self.logger.debug("Badanie wymaga zasobów")
                     continue
                 if "error_buildings" in data and data["error_buildings"]:
                     self.logger.debug(
-                        "Skipping research of %s because of building error", unit_type
+                        "Pomijanie badania %s z powodu błędu budynku", unit_type
                     )
                     continue
 
                 attempt = self.attempt_research(unit_type, smith_data=smith_data)
                 if attempt:
                     self.logger.info(
-                        "Started smith upgrade of %s %d -> %d",
+                        "Rozpoczęto ulepszanie w kuźni %s %d -> %d",
                         unit_type, current_level, current_level + 1
                     )
                     self.wrapper.reporter.report(
                         self.village_id,
                         "TWB_UPGRADE",
-                        "Started smith upgrade of %s %d -> %d"
+                        "Rozpoczęto ulepszanie w kuźni %s %d -> %d"
                         % (unit_type, current_level, current_level + 1),
                     )
                     return True
@@ -292,16 +292,16 @@ class TroopManager:
             smith_data = Extractor.smith_data(result)
         if not smith_data or unit_type not in smith_data["available"]:
             self.logger.warning(
-                "Unit %s does not appear to be available or smith not built yet", unit_type
+                "Jednostka %s nie wydaje się dostępna lub kuźnia nie jest jeszcze zbudowana", unit_type
             )
             return
         data = smith_data["available"][unit_type]
         if "can_research" in data and data["can_research"]:
             if "research_error" in data and data["research_error"]:
                 self.logger.debug(
-                    "Ignoring research of %s because of resource error %s", unit_type, str(data["research_error"])
+                    "Ignorowanie badania %s z powodu błędu zasobów %s", unit_type, str(data["research_error"])
                 )
-                # Add needed resources to res manager?
+                # Dodać potrzebne zasoby do menedżera zasobów?
                 r = True
                 if data["wood"] > self.game_data["village"]["wood"]:
                     req = data["wood"] - self.game_data["village"]["wood"]
@@ -316,11 +316,11 @@ class TroopManager:
                     self.resman.request(source="research", resource="iron", amount=req)
                     r = False
                 if not r:
-                    self.logger.info("Research needs resources, requested: %s", self.resman.requested)
+                    self.logger.info("Badanie wymaga zasobów, zażądano: %s", self.resman.requested)
                 return False
             if "error_buildings" in data and data["error_buildings"]:
                 self.logger.debug(
-                    "Ignoring research of %s because of building error %s", unit_type, str(data["error_buildings"])
+                    "Ignorowanie badania %s z powodu błędu budynku %s", unit_type, str(data["error_buildings"])
                 )
                 return False
             if (
@@ -345,16 +345,16 @@ class TroopManager:
                     self._research_wait = time.time() + self.research_time(
                         data["research_time"]
                     )
-                self.logger.info("Started research of %s", unit_type)
+                self.logger.info("Rozpoczęto badanie %s", unit_type)
                 # self.resman.update(res["game_data"])
                 return True
-        self.logger.info("Research of %s not yet possible", unit_type)
+        self.logger.info("Badanie %s jeszcze niemożliwe", unit_type)
 
     def gather(self, selection=1, disabled_units=[], advanced_gather=True):
         """
-        Used for the gather resources functionality where it uses two options:
-        - Basic: all troops gather on the selected gather level
-        - Advanced: troops are split
+        Używane do funkcji zbierania zasobów, gdzie używa dwóch opcji:
+        - Podstawowa: wszystkie wojska zbierają na wybranym poziomie
+        - Zaawansowana: wojska są dzielone
         """
         if not self.can_gather:
             return False
@@ -386,14 +386,14 @@ class TroopManager:
         if "archer" in self.total_troops:
             haul_dict.extend(["archer:10", "marcher:50"])
 
-        # ADVANCED GATHER: Goes from gather_selection to 1, trying the same time (approximately) for every gather. Active hours exclude LC and Axes, at night everything is used for gather (except Paladin)
+        # ZAAWANSOWANE ZBIERANIE: Przechodzi od gather_selection do 1, próbując uzyskać ten sam czas (w przybliżeniu) dla każdego zbierania. Aktywne godziny wykluczają LK i topory, w nocy wszystko jest używane do zbierania (z wyjątkiem Paladyna)
 
         if advanced_gather:
             selection_map = [15, 21, 24,
-                             26]  # Divider in order to split the total carrying capacity of the troops into pieces that can fit into pretty much the same time frame
+                             26]  # Dzielnik do podziału całkowitej pojemności transportowej wojsk na kawałki, które mieszczą się w mniej więcej tym samym przedziale czasowym
 
             batch_multiplier = [15, 6, 3,
-                                2]  # Multiplier for equal distribution of troops. Time(gather1) = Time(gather2) if gather2 = 2.5 * gather1
+                                2]  # Mnożnik dla równego rozmieszczenia wojsk. Czas(zbieranie1) = Czas(zbieranie2) jeśli zbieranie2 = 2.5 * zbieranie1
 
             troops = {key: int(value) for key, value in troops.items()}
             total_carry = 0
@@ -411,11 +411,11 @@ class TroopManager:
 
             for option in list(reversed(sorted(village_data['options'].keys())))[4 - selection:]:
                 self.logger.debug(
-                    f"Option: {option} Locked? {village_data['options'][option]['is_locked']} Is underway? {village_data['options'][option]['scavenging_squad'] != None}")
+                    f"Opcja: {option} Zablokowana? {village_data['options'][option]['is_locked']} W toku? {village_data['options'][option]['scavenging_squad'] != None}")
                 if int(option) <= selection and not village_data['options'][option]['is_locked'] and not \
                 village_data['options'][option]['scavenging_squad'] != None:
                     available_selection = int(option)
-                    self.logger.info(f"Gather operation {available_selection} is ready to start.")
+                    self.logger.info(f"Operacja zbierania {available_selection} jest gotowa do rozpoczęcia.")
 
                     payload = {
                         "squad_requests[0][village_id]": self.village_id,
@@ -427,7 +427,7 @@ class TroopManager:
                     temp_haul = curr_haul
 
                     self.logger.debug(
-                        f"Current Haul: {curr_haul} = Gather Batch ({gather_batch}) * Batch Multiplier {available_selection} ({batch_multiplier[available_selection - 1]})")
+                        f"Bieżący ładunek: {curr_haul} = Partia zbierania ({gather_batch}) * Mnożnik partii {available_selection} ({batch_multiplier[available_selection - 1]})")
 
                     for item in haul_dict:
                         item, carry = item.split(":")
@@ -461,19 +461,19 @@ class TroopManager:
                     sleep += random.randint(1, 5)
                     time.sleep(sleep)
                     self.last_gather = int(time.time())
-                    self.logger.info(f"Using troops for gather operation: {available_selection}")
+                    self.logger.info(f"Użycie wojsk do operacji zbierania: {available_selection}")
                 else:
-                    # Gathering already exists or locked
+                    # Zbieranie już istnieje lub jest zablokowane
                     break
 
         else:
             for option in reversed(sorted(village_data['options'].keys())):
                 self.logger.debug(
-                    f"Option: {option} Locked? {village_data['options'][option]['is_locked']} Is underway? {village_data['options'][option]['scavenging_squad'] != None}")
+                    f"Opcja: {option} Zablokowana? {village_data['options'][option]['is_locked']} W toku? {village_data['options'][option]['scavenging_squad'] != None}")
                 if int(option) <= selection and not village_data['options'][option]['is_locked'] and not \
                 village_data['options'][option]['scavenging_squad'] != None:
                     available_selection = int(option)
-                    self.logger.info(f"Gather operation {available_selection} is ready to start.")
+                    self.logger.info(f"Operacja zbierania {available_selection} jest gotowa do rozpoczęcia.")
                     selection = available_selection
 
                     payload = {
@@ -507,16 +507,16 @@ class TroopManager:
                             village_id=self.village_id,
                         )
                         self.last_gather = int(time.time())
-                        self.logger.info(f"Using troops for gather operation: {selection}")
+                        self.logger.info(f"Użycie wojsk do operacji zbierania: {selection}")
                 else:
-                    # Gathering already exists or locked
+                    # Zbieranie już istnieje lub jest zablokowane
                     break
         self.logger.info("Wszystkie dostępne poziomy zbieractwa są w użyciu.")
         return True
 
     def _recruit_screen(self, building):
         """
-        Return the actual screen used for recruiting from a building.
+        Zwraca rzeczywisty ekran używany do rekrutacji z budynku.
         """
         if building in ["barracks", "stable", "garage"]:
             return "train"
@@ -524,7 +524,7 @@ class TroopManager:
 
     def cancel(self, building, id):
         """
-        Cancel a troop recruiting action
+        Anuluje akcję rekrutacji wojsk
         """
         screen = self._recruit_screen(building)
         self.wrapper.get_api_action(
@@ -536,7 +536,7 @@ class TroopManager:
 
     def recruit(self, unit_type, amount=10, wait_for=False, building="barracks"):
         """
-        Recruit x amount of x from a certain building
+        Rekrutuje x ilości x z określonego budynku
         """
         screen = self._recruit_screen(building)
         data = self.wrapper.get_action(action=screen, village_id=self.village_id)
@@ -544,11 +544,11 @@ class TroopManager:
         existing = Extractor.active_recruit_queue(data)
         if existing:
             self.logger.warning(
-                "Building Village %s %s recruitment queue out-of-sync"
+                "W kolejce rekrutacji wsi %s %s brak synchronizacji"
                 % (self.village_id, building)
             )
             self.logger.info(
-                "Recruitment queue out-of-sync for building %s; cancelling manual entries to resync",
+                "Kolejka rekrutacji budynku %s jest niezsynchronizowana; anulowanie ręcznych wpisów w celu ponownej synchronizacji",
                 building,
             )
             if not self.can_fix_queue:
@@ -556,13 +556,13 @@ class TroopManager:
             for entry in existing:
                 self.cancel(building=building, id=entry)
                 self.logger.info(
-                    "Canceled recruit item %s on building %s" % (entry, building)
+                    "Anulowano element rekrutacji %s w budynku %s" % (entry, building)
                 )
             return self.recruit(unit_type, amount, wait_for, building)
 
         self.recruit_data = Extractor.recruit_data(data)
         self.game_data = Extractor.game_state(data)
-        self.logger.info("Attempting recruitment of %d %s" % (amount, unit_type))
+        self.logger.info("Próba rekrutacji %d %s" % (amount, unit_type))
 
         max_batch_size = self.max_batch_size
         if isinstance(max_batch_size, dict):
@@ -572,7 +572,7 @@ class TroopManager:
 
         if unit_type not in self.recruit_data:
             self.logger.warning(
-                "Problem z rekrutacją %d %s ponieważ nie jest zbadana."
+                "Rekrutacja %d %s nie powiodła się, ponieważ jednostka nie jest zbadana."
                 % (amount, unit_type)
             )
             self.attempt_research(unit_type)
@@ -581,13 +581,13 @@ class TroopManager:
         resources = self.recruit_data[unit_type]
         if not resources:
             self.logger.warning(
-                "Recruitment of %d %s failed because invalid identifier"
+                "Rekrutacja %d %s nie powiodła się z powodu nieprawidłowego identyfikatora"
                 % (amount, unit_type)
             )
             return False
         if not resources["requirements_met"]:
             self.logger.info(
-                "Recruitment of %d %s queued for later because requirements are not met",
+                "Rekrutacja %d %s zakolejkowana na później, ponieważ wymagania nie są spełnione",
                 amount, unit_type
             )
             self.attempt_research(unit_type)
@@ -596,7 +596,7 @@ class TroopManager:
         get_min = self.get_min_possible(resources)
         if get_min == 0:
             self.logger.info(
-                "Recruitment of %d %s failed because of not enough resources, reserving missing amounts",
+                "Rekrutacja %d %s nie powiodła się z powodu braku zasobów, rezerwowanie brakujących ilości",
                 amount, unit_type
             )
             self.reserve_resources(resources, amount, get_min, unit_type)
@@ -606,7 +606,7 @@ class TroopManager:
         if get_min < amount:
             if wait_for:
                 self.logger.info(
-                    "Recruitment of %d %s postponed because of not enough resources",
+                    "Rekrutacja %d %s odroczona z powodu braku zasobów",
                     amount, unit_type
                 )
                 self.reserve_resources(resources, amount, get_min, unit_type)
@@ -614,7 +614,7 @@ class TroopManager:
                 return False
             if get_min > 0:
                 self.logger.info(
-                    "Recruitment of %d %s reduced to %d because of available resources",
+                    "Rekrutacja %d %s zmniejszona do %d z powodu dostępnych zasobów",
                     amount, unit_type, get_min
                 )
                 self.reserve_resources(resources, amount, get_min, unit_type)
@@ -622,7 +622,7 @@ class TroopManager:
                 needed_reserve = True
 
         if not needed_reserve:
-            # No need to reserve resources anymore!
+            # Nie trzeba już rezerwować zasobów!
             if f"recruitment_{unit_type}" in self.resman.requested:
                 self.resman.requested.pop(f"recruitment_{unit_type}", None)
 
@@ -639,7 +639,7 @@ class TroopManager:
             )
             # self.troops[unit_type] = str((int(self.troops[unit_type]) if unit_type in self.troops else 0) + amount)
             self.logger.info(
-                "Recruitment of %d %s started (%s idle till %d)",
+                "Rekrutacja %d %s rozpoczęta (%s bezczynny do %d)",
                     amount,
                     unit_type,
                     building,
@@ -648,7 +648,7 @@ class TroopManager:
             self.wrapper.reporter.report(
                 self.village_id,
                 "TWB_RECRUIT",
-                "Recruitment of %d %s started (%s idle till %d)"
+                "Rekrutacja %d %s rozpoczęta (%s bezczynny do %d)"
                 % (
                     amount,
                     unit_type,
@@ -661,18 +661,18 @@ class TroopManager:
 
     def reserve_resources(self, resources, wanted_times, has_times, unit_type):
         """
-        Reserve resources for a certain recruiting action
+        Rezerwuje zasoby dla określonej akcji rekrutacji
         """
-        # Resources per unit, batch wanted, batch already recruiting
+        # Zasoby na jednostkę, żądana partia, już rekrutowana partia
         create_amount = wanted_times - has_times
-        self.logger.debug(f"Requesting resources to recruit %d of %s", create_amount, unit_type)
+        self.logger.debug(f"Żądanie zasobów do rekrutacji %d %s", create_amount, unit_type)
         for res in ["wood", "stone", "iron"]:
             req = resources[res] * (wanted_times - has_times)
             self.resman.request(source=f"recruitment_{unit_type}", resource=res, amount=req)
 
     def readable_ts(self, seconds):
         """
-        Human readable timestamp
+        Czytelny dla człowieka znacznik czasu
         """
         seconds -= time.time()
         seconds = seconds % (24 * 3600)
