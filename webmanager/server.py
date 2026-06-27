@@ -3,6 +3,7 @@ import os
 import sys
 import traceback
 import re
+from datetime import datetime
 # Ensure project root is on sys.path regardless of current working directory
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -604,6 +605,296 @@ def config_set():
         DataReader.village_config_set(village_id=vid, parameter=param, value=value)
 
     return jsonify(sync())
+
+
+# ---------------------------------------------------------------------------
+# DEBUG CYCLE — endpoints do uruchamiania cyklu diagnostycznego z poziomu UI
+# ---------------------------------------------------------------------------
+import threading
+
+# Globalny stan ostatniego cyklu (współdzielony między requestami)
+_debug_state = {
+    "status": "idle",          # idle | running | completed | failed
+    "started_at": None,
+    "finished_at": None,
+    "current_village": None,
+    "progress": 0,             # 0..100
+    "total_phases": 0,
+    "completed_phases": 0,
+    "current_phase": None,
+    "results": [],             # lista wyników faz
+    "errors": [],
+    "output_dir": None,
+    "config": {"dry_run": False, "save_responses": True},
+    "lock": threading.Lock(),
+}
+
+
+def _build_debug_wrapper():
+    """Buduje WebWrapper z aktywnej sesji w cache/session.json."""
+    from core.request import WebWrapper
+    session_data = DataReader.get_session()
+    if not session_data or not session_data.get("endpoint"):
+        return None, "Brak aktywnej sesji. Najpierw uruchom bota i zapisz sesję."
+    try:
+        wrapper = WebWrapper(
+            url=session_data.get("endpoint"),
+            server=session_data.get("server"),
+            endpoint=session_data.get("endpoint"),
+            reporter_enabled=False,
+            reporter_constr=None,
+        )
+        if session_data.get("cookies"):
+            try:
+                wrapper.web.cookies.update(session_data["cookies"])
+            except Exception as e:
+                return None, f"Błąd ładowania ciasteczek: {e}"
+        return wrapper, None
+    except Exception as e:
+        return None, f"Błąd tworzenia wrappera: {e}"
+
+
+def _run_debug_cycle_async(village_ids, dry_run, save_responses):
+    """Uruchamia cykl debug w osobnym wątku (nie blokuje requestu HTTP)."""
+    try:
+        from core.debug_cycle import DebugCycleRunner
+        config = DataReader.config_grab() or {}
+
+        _debug_state["status"] = "running"
+        _debug_state["started_at"] = datetime.now().isoformat()
+        _debug_state["results"] = []
+        _debug_state["errors"] = []
+        _debug_state["progress"] = 0
+        _debug_state["completed_phases"] = 0
+        _debug_state["total_phases"] = len(village_ids) * 9  # 9 faz na wioskę
+
+        wrapper, err = _build_debug_wrapper()
+        if err:
+            _debug_state["status"] = "failed"
+            _debug_state["errors"].append({"phase": "init", "error": err})
+            _debug_state["finished_at"] = datetime.now().isoformat()
+            return
+
+        # Stwórz katalog wyjściowy
+        output_dir = os.path.join(
+            os.path.dirname(__file__), "..", "cache", "debugcycle"
+        )
+        os.makedirs(output_dir, exist_ok=True)
+        _debug_state["output_dir"] = output_dir
+
+        all_results = []
+        for idx, vid in enumerate(village_ids):
+            _debug_state["current_village"] = str(vid)
+            _debug_state["current_phase"] = f"Wioska {vid} - inicjalizacja"
+            LOGGER.info("=== Debug Cycle: wioska %s (%d/%d) ===", vid, idx + 1, len(village_ids))
+
+            try:
+                runner = DebugCycleRunner(
+                    wrapper=wrapper,
+                    village_id=str(vid),
+                    config=config.get("villages", {}).get(str(vid), {}),
+                    dry_run=dry_run,
+                    save_responses=save_responses,
+                    output_dir=output_dir,
+                )
+                report = runner.run()
+                all_results.append(report)
+                # Aktualizuj stan
+                _debug_state["completed_phases"] += len(runner.results)
+                for r in runner.results:
+                    _debug_state["results"].append({
+                        "village_id": str(vid),
+                        "phase": r.name,
+                        "success": r.success,
+                        "message": r.message,
+                        "details": r.details,
+                        "timestamp": r.timestamp,
+                    })
+            except Exception as e:
+                LOGGER.exception("Błąd cyklu dla wioski %s: %s", vid, e)
+                _debug_state["errors"].append({
+                    "village_id": str(vid),
+                    "phase": "village_cycle",
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                })
+
+            _debug_state["progress"] = int((idx + 1) * 100 / max(len(village_ids), 1))
+
+        _debug_state["status"] = "completed"
+        _debug_state["finished_at"] = datetime.now().isoformat()
+        _debug_state["current_phase"] = None
+        _debug_state["current_village"] = None
+        LOGGER.info("=== Debug Cycle zakończony ===")
+
+    except Exception as e:
+        LOGGER.exception("Krytyczny błąd w debug cycle: %s", e)
+        _debug_state["status"] = "failed"
+        _debug_state["errors"].append({"phase": "global", "error": str(e)})
+        _debug_state["finished_at"] = datetime.now().isoformat()
+
+
+@app.route('/debug/start', methods=['POST'])
+def debug_start():
+    """
+    Uruchamia cykl diagnostyczny w tle.
+    Parametry (POST/JSON):
+      - village_id: pojedyncza wioska (opcjonalnie)
+      - all: True/False - czy dla wszystkich wiosek z config.json (domyślnie True)
+      - dry_run: True/False - bez prawdziwych POSTów
+      - save_responses: True/False - czy zapisywać odpowiedzi HTTP (domyślnie True)
+    """
+    global _debug_state
+    with _debug_state["lock"]:
+        if _debug_state["status"] == "running":
+            return jsonify({
+                "error": "Cykl debug już trwa",
+                "status": _debug_state["status"],
+                "started_at": _debug_state["started_at"],
+            }), 409
+
+        data = request.get_json(silent=True) or {}
+        dry_run = bool(data.get("dry_run", False))
+        save_responses = bool(data.get("save_responses", True))
+        all_villages = bool(data.get("all", True))
+        single_vid = data.get("village_id")
+
+        # Lista wiosek
+        config = DataReader.config_grab() or {}
+        if single_vid:
+            village_ids = [str(single_vid)]
+        elif all_villages:
+            village_ids = list((config.get("villages") or {}).keys())
+        else:
+            # Spróbuj pobrać z cache/managed
+            managed = DataReader.cache_grab("managed")
+            village_ids = list(managed.keys()) if managed else list((config.get("villages") or {}).keys())
+
+        if not village_ids:
+            return jsonify({
+                "error": "Brak wiosek. Dodaj wioski do config.json lub podaj village_id."
+            }), 400
+
+        _debug_state["status"] = "running"
+        _debug_state["started_at"] = datetime.now().isoformat()
+        _debug_state["finished_at"] = None
+        _debug_state["current_village"] = None
+        _debug_state["current_phase"] = "Inicjalizacja"
+        _debug_state["progress"] = 0
+        _debug_state["completed_phases"] = 0
+        _debug_state["total_phases"] = len(village_ids) * 9
+        _debug_state["results"] = []
+        _debug_state["errors"] = []
+        _debug_state["config"] = {
+            "dry_run": dry_run,
+            "save_responses": save_responses,
+        }
+        output_dir = os.path.join(
+            os.path.dirname(__file__), "..", "cache", "debugcycle"
+        )
+        os.makedirs(output_dir, exist_ok=True)
+        _debug_state["output_dir"] = output_dir
+
+        # Uruchom w osobnym wątku
+        thread = threading.Thread(
+            target=_run_debug_cycle_async,
+            args=(village_ids, dry_run, save_responses),
+            daemon=True,
+        )
+        thread.start()
+
+        return jsonify({
+            "status": "started",
+            "villages": village_ids,
+            "village_count": len(village_ids),
+            "total_phases": _debug_state["total_phases"],
+            "config": _debug_state["config"],
+            "started_at": _debug_state["started_at"],
+            "output_dir": output_dir,
+        })
+
+
+@app.route('/debug/status', methods=['GET'])
+def debug_status():
+    """Zwraca aktualny stan cyklu debug."""
+    # Kopia stanu bez locka (dla thread safety)
+    state_copy = {
+        "status": _debug_state["status"],
+        "started_at": _debug_state["started_at"],
+        "finished_at": _debug_state["finished_at"],
+        "current_village": _debug_state["current_village"],
+        "current_phase": _debug_state["current_phase"],
+        "progress": _debug_state["progress"],
+        "completed_phases": _debug_state["completed_phases"],
+        "total_phases": _debug_state["total_phases"],
+        "results_count": len(_debug_state["results"]),
+        "errors_count": len(_debug_state["errors"]),
+        "config": _debug_state["config"],
+        "output_dir": _debug_state["output_dir"],
+    }
+    return jsonify(state_copy)
+
+
+@app.route('/debug/results', methods=['GET'])
+def debug_results():
+    """Zwraca pełne wyniki faz z ostatniego cyklu."""
+    return jsonify({
+        "status": _debug_state["status"],
+        "results": _debug_state["results"],
+        "errors": _debug_state["errors"],
+    })
+
+
+@app.route('/debug/files', methods=['GET'])
+def debug_files():
+    """Lista zapisanych plików HTML/JSON z cyklu debug."""
+    output_dir = _debug_state.get("output_dir") or os.path.join(
+        os.path.dirname(__file__), "..", "cache", "debugcycle"
+    )
+    if not os.path.isdir(output_dir):
+        return jsonify({"files": [], "output_dir": output_dir})
+
+    files = []
+    for root, dirs, filenames in os.walk(output_dir):
+        for filename in filenames:
+            full_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(full_path, output_dir)
+            size = os.path.getsize(full_path)
+            mtime = datetime.fromtimestamp(os.path.getmtime(full_path)).isoformat()
+            files.append({
+                "path": rel_path,
+                "size": size,
+                "mtime": mtime,
+            })
+    files.sort(key=lambda f: f["path"])
+    return jsonify({"files": files, "output_dir": output_dir, "count": len(files)})
+
+
+@app.route('/debug/file', methods=['GET'])
+def debug_file():
+    """Zwraca zawartość konkretnego zapisanego pliku (HTML/JSON)."""
+    rel_path = request.args.get("path")
+    if not rel_path:
+        return jsonify({"error": "Missing path parameter"}), 400
+    output_dir = _debug_state.get("output_dir") or os.path.join(
+        os.path.dirname(__file__), "..", "cache", "debugcycle"
+    )
+    full_path = os.path.normpath(os.path.join(output_dir, rel_path))
+    # Zabezpieczenie przed path traversal
+    if not full_path.startswith(os.path.abspath(output_dir)):
+        return jsonify({"error": "Invalid path"}), 400
+    if not os.path.isfile(full_path):
+        return jsonify({"error": "File not found"}), 404
+    try:
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return jsonify({
+            "path": rel_path,
+            "size": len(content),
+            "content": content,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if len(sys.argv) > 1:
