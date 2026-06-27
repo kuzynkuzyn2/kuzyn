@@ -1,0 +1,1 @@
+test write at $(Get-Date -Format 'HH:mm:ss')
