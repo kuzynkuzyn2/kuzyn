@@ -478,7 +478,10 @@ class TroopManager:
                     sleep += random.randint(1, 5)
                     time.sleep(sleep)
                     self.last_gather = int(time.time())
-                    self.logger.info(f"Użycie wojsk do operacji zbierania: {available_selection}")
+                    self.logger.info(
+                        "✓ Wysłano zbieranie: opcja %d z wioski %s (czeka %ds do następnej)",
+                        available_selection, self.village_id, sleep,
+                    )
                 else:
                     # Zbieranie już istnieje lub jest zablokowane
                     break
@@ -524,11 +527,23 @@ class TroopManager:
                             village_id=self.village_id,
                         )
                         self.last_gather = int(time.time())
-                        self.logger.info(f"Użycie wojsk do operacji zbierania: {selection}")
+                        # POPRAWIONE: wyraźny komunikat sukcesu
+                        self.logger.info(
+                            "✓ Wysłano zbieranie (tryb podstawowy): opcja %d z wioski %s",
+                            selection, self.village_id,
+                        )
                 else:
                     # Zbieranie już istnieje lub jest zablokowane
                     break
-        self.logger.info("Wszystkie dostępne poziomy zbieractwa są w użyciu.")
+        # POPRAWIONE: informacyjny komunikat podsumowujący, nie mylący "wszystkie używane"
+        if available_selection == 0:
+            self.logger.info(
+                "Żaden poziom zbieractwa nie jest dostępny (wszystkie zablokowane lub w toku)"
+            )
+        else:
+            self.logger.info(
+                "Zakończono wysyłanie zbieractwa, ostatni poziom: %d", available_selection,
+            )
         return True
 
     def _recruit_screen(self, building):
@@ -553,7 +568,8 @@ class TroopManager:
 
     def recruit(self, unit_type, amount=10, wait_for=False, building="barracks"):
         """
-        Rekrutuje x ilości x z określonego budynku
+        Rekrutuje x ilości x z określonego budynku.
+        POPRAWIONE: dodane wyraźne logi "✓ Rekrutacja X Y wysłana" po udanym POST.
         """
         screen = self._recruit_screen(building)
         data = self.wrapper.get_action(action=screen, village_id=self.village_id)
@@ -655,7 +671,13 @@ class TroopManager:
                     amount * int(resources["build_time"])
             )
             # self.troops[unit_type] = str((int(self.troops[unit_type]) if unit_type in self.troops else 0) + amount)
+            # POPRAWIONE: dodany wyraźny log sukcesu, żeby użytkownik widział
+            # że akcja została faktycznie wysłana, nie tylko "próba".
             self.logger.info(
+                "✓ Wysłano rekrutację: %d %s w %s (zajęty do %s)",
+                amount, unit_type, building,
+                self.readable_ts(self.wait_for[self.village_id][building]),
+            )
                 "Rekrutacja %d %s rozpoczęta (%s bezczynny do %d)",
                     amount,
                     unit_type,

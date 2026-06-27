@@ -63,7 +63,8 @@ class WebWrapper:
 
     def get_url(self, url, headers=None, _captcha_retries=0):
         """
-        Pobiera adres URL za pomocą podstawowego żądania GET
+        Pobiera adres URL za pomocą podstawowego żądania GET.
+        Loguje akcję na customowym poziomie "get" (21), widocznym w konsoli.
         """
         self.headers['Origin'] = (self.endpoint if self.endpoint else self.auth_endpoint).rstrip('/')
         if not self.priority_mode:
@@ -71,6 +72,9 @@ class WebWrapper:
         url = urljoin(self.endpoint if self.endpoint else self.auth_endpoint, url)
         if not headers:
             headers = self.headers
+        # POPRAWIONE: loguj na customowym poziomie "get" (21), nie debug.
+        # Dzięki temu akcje HTTP są widoczne w konsoli niebieskim tłem.
+        self.logger.get("GET %s", url)
         try:
             res = self.web.get(url=url, headers=headers)
             self.logger.debug("GET %s [%d]", url, res.status_code)
@@ -112,7 +116,8 @@ class WebWrapper:
 
     def post_url(self, url, data, headers=None):
         """
-        Wysyła podstawowe żądanie POST z danymi zakodowanymi w URL
+        Wysyła podstawowe żądanie POST z danymi zakodowanymi w URL.
+        Loguje akcję na customowym poziomie "get" (21), widocznym w konsoli.
         """
         if not self.priority_mode:
             time.sleep(
@@ -123,6 +128,8 @@ class WebWrapper:
         enc = urlencode(data)
         if not headers:
             headers = self.headers
+        # POPRAWIONE: loguj POST na customowym poziomie "get" (21).
+        self.logger.get("POST %s | data=%s", url, enc[:200])
         try:
             res = self.web.post(url=url, data=data, headers=headers)
             self.logger.debug("POST %s %s [%d]", url, enc, res.status_code)

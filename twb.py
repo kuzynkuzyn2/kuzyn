@@ -42,9 +42,9 @@ from pages.overview import OverviewPage
 from core.exceptions import UnsupportedPythonVersion
 from core.extractors import Extractor
 
-LOG_LEVEL_GET = 21
-LOG_LEVEL_READ = 22
-LOG_LEVEL_WORK = 23
+LOG_LEVEL_GET = 15
+LOG_LEVEL_READ = 16
+LOG_LEVEL_WORK = 17
 
 logging.addLevelName(LOG_LEVEL_GET, "GET")
 logging.addLevelName(LOG_LEVEL_READ, "READ")
@@ -84,6 +84,11 @@ coloredlogs.install(
         "work": {"color": "white", "background": "magenta"},
     },
 )
+
+# POPRAWIONE: ustawiamy próg logowania naszych custom leveli niżej niż INFO,
+# żeby akcje GET/READ/WORK były widoczne. coloredlogs.install() resetuje
+# próg loggera 'root' na INFO, co ukrywa poziomy 15/16/17.
+logging.getLogger().setLevel(15)
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)

@@ -279,7 +279,9 @@ class BuildingManager:
 
     def get_next_building_action(self, index=0):
         """
-        Oblicza następną najlepszą możliwą akcję budowania
+        Oblicza następną najlepszą możliwą akcję budowania.
+        POPRAWIONE: zlicza "pominięcia" niedostępnych budynków i po N próbach
+        usuwa je z kolejki zamiast logować w kółko "Pomijanie X, ponieważ jeszcze niedostępne".
         """
         if index >= len(self.queue) or index >= self.max_lookahead:
             self.logger.debug("Nic nie buduję, ponieważ niewystarczające zasoby lub indeks poza zakresem")
@@ -289,6 +291,11 @@ class BuildingManager:
         if queue_check:
             self.logger.info("Nie buduję z powodu elementów w kolejce: %s", self.waits)
             return False
+
+        # POPRAWIONE: Jeśli po 3 próbach ten sam niedostępny budynek został pominięty,
+        # usuń go z kolejki żeby nie blokować kolejnych cykli.
+        if not hasattr(self, '_skip_counts'):
+            self._skip_counts = {}
 
         if self.resman and self.resman.in_need_of("pop"):
             build_data = "farm:%d" % (int(self.levels["farm"]) + 1)
@@ -304,29 +311,43 @@ class BuildingManager:
 
         if len(self.queue):
             entry = self.queue[index]
-            entry, min_lvl = entry.split(":")
+            entry_building, min_lvl = entry.split(":")
             min_lvl = int(min_lvl)
-            if min_lvl <= self.levels[entry]:
+            if min_lvl <= self.levels[entry_building]:
                 self.queue.pop(index)
+                self._skip_counts.pop(entry_building, None)
                 return self.get_next_building_action(index)
-            if entry not in self.costs:
-                self.logger.info("Pomijanie %s, ponieważ jeszcze niedostępne", entry)
+            if entry_building not in self.costs:
+                # POPRAWIONE: zamiast pomijać w nieskończoność, usuń z kolejki po kilku próbach
+                self._skip_counts[entry_building] = self._skip_counts.get(entry_building, 0) + 1
+                if self._skip_counts[entry_building] >= 3:
+                    self.logger.info(
+                        "Usuwanie %s z kolejki (niedostępne od 3+ cykli, prawdopodobnie jeszcze nie zbudowano)",
+                        entry_building,
+                    )
+                    self.queue.pop(index)
+                    self._skip_counts.pop(entry_building, None)
+                    return self.get_next_building_action(index)
+                self.logger.info("Pomijanie %s, ponieważ jeszcze niedostępne", entry_building)
                 return self.get_next_building_action(index + 1)
-            check = self.costs[entry]
+            check = self.costs[entry_building]
             if "max_level" in check and min_lvl > check["max_level"]:
                 self.logger.info(
-                    "Usuwanie wpisu %s, ponieważ przekroczono max_level", entry
+                    "Usuwanie wpisu %s, ponieważ przekroczono max_level", entry_building
                 )
                 self.queue.pop(index)
+                self._skip_counts.pop(entry_building, None)
                 return self.get_next_building_action(index)
             if check["can_build"] and self.has_enough(check) and "build_link" in check:
+                # Sukces — resetujemy licznik pominięć dla tego budynku
+                self._skip_counts.pop(entry_building, None)
                 queue = self.put_wait(check["build_time"])
                 self.logger.info(
                     "Budowanie %s %d -> %d (zakończy się: %s)"
                     % (
-                        entry,
-                        self.levels[entry],
-                        self.levels[entry] + 1,
+                        entry_building,
+                        self.levels[entry_building],
+                        self.levels[entry_building] + 1,
                         self.readable_ts(queue),
                     )
                 )
@@ -335,13 +356,13 @@ class BuildingManager:
                     "TWB_BUILD",
                     "Budowanie %s %d -> %d (zakończy się: %s)"
                     % (
-                        entry,
-                        self.levels[entry],
-                        self.levels[entry] + 1,
+                        entry_building,
+                        self.levels[entry_building],
+                        self.levels[entry_building] + 1,
                         self.readable_ts(queue),
                     ),
                 )
-                self.levels[entry] += 1
+                self.levels[entry_building] += 1
                 response = self.wrapper.get_url(check["build_link"].replace("amp;", ""))
                 if self.can_build_three_min:
                     # Poczekaj przez losowy czas
