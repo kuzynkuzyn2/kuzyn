@@ -79,6 +79,9 @@ class TroopManager:
         """
         Aktualizuje całkowitą liczbę zrekrutowanych jednostek
         """
+        if not self.wrapper:
+            self.logger.warning("Brak wrappera w TroopManager.update_totals")
+            return False
         main_data = self.wrapper.get_action(
             action="overview", village_id=self.village_id
         )
@@ -89,8 +92,21 @@ class TroopManager:
                 # new run, remove request
                 self.resman.requested["research"] = {}
 
+        # POPRAWIONE: bezpieczny dostęp do game_data - nie crash gdy Extraction zawiedzie
+        if not self.game_data or not isinstance(self.game_data, dict) or "village" not in self.game_data:
+            if not self.logger:
+                self.logger = logging.getLogger(
+                    f"Rekrutacja: village_{self.village_id}"
+                )
+            self.logger.warning(
+                "Nie udało się odczytać stanu gry dla wsi %s (game_data=%s), pomijam update_totals",
+                self.village_id,
+                type(self.game_data).__name__,
+            )
+            return False
+
         if not self.logger:
-            village_name = self.game_data["village"]["name"]
+            village_name = self.game_data["village"].get("name", self.village_id)
             self.logger = logging.getLogger(f"Rekrutacja: {village_name}")
         self.troops = {}
 
@@ -117,6 +133,7 @@ class TroopManager:
             else:
                 self.total_troops[k] = int(v)
         self.logger.debug("Village units total: %s", str(self.total_troops))
+        return True
 
     def start_update(self, building="barracks", disabled_units=[]):
         """

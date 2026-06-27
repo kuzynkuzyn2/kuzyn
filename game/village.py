@@ -25,7 +25,7 @@ class Village:
     units = None
     wrapper = None
     resources = {}
-    game_data = {}
+    game_data = None
     logger = None
     force_troops = False
     area = None
@@ -46,6 +46,9 @@ class Village:
     twp = TwStats()
 
     def __init__(self, village_id=None, wrapper=None):
+        # POPRAWIONE: inicjalizuj game_data jako None zamiast współdzielonego {} na klasie,
+        # aby uniknąć KeyError gdy Extraction zawiedzie.
+        self.game_data = None
         self.village_id = village_id
         self.wrapper = wrapper
 
@@ -82,12 +85,19 @@ class Village:
             data = self.wrapper.get_url("game.php?screen=overview&intro")
             if data:
                 self.game_data = Extractor.game_state(data)
-            if self.game_data:
+            if self.game_data and isinstance(self.game_data, dict) and "village" in self.game_data:
                 self.village_id = str(self.game_data["village"]["id"])
                 self.logger = logging.getLogger(
                     "Village %s" % self.game_data["village"]["name"]
                 )
                 self.logger.info("Odczytano stan gry dla wsi")
+            else:
+                if not self.logger:
+                    self.logger = logging.getLogger("Village unknown")
+                self.logger.warning(
+                    "Nie udało się odczytać stanu gry dla nowej wioski (game_data=%s)",
+                    type(self.game_data).__name__,
+                )
         else:
             self.logger = logging.getLogger("Village %s" % self.village_id)
             self.logger.info("Pobieram informacje o wiosce %s przed wykonaniem cyklu", self.village_id)
@@ -96,20 +106,32 @@ class Village:
             )
             if data:
                 self.game_data = Extractor.game_state(data)
-                if self.game_data:
-                    self.logger = logging.getLogger(
-                        "Village %s" % self.game_data["village"]["name"]
-                    )
-                    self.logger.info("Odczytano stan gry dla wsi")
-                    self.logger.info("Pobrano dane wioski %s przed przetwarzaniem", self.game_data["village"]["name"])
+            if self.game_data and isinstance(self.game_data, dict) and "village" in self.game_data:
+                self.logger = logging.getLogger(
+                    "Village %s" % self.game_data["village"]["name"]
+                )
+                self.logger.info("Odczytano stan gry dla wsi")
+                self.logger.info("Pobrano dane wioski %s przed przetwarzaniem", self.game_data["village"]["name"])
+                try:
                     self.wrapper.reporter.report(
                         self.village_id,
                         "TWB_START",
                         "Rozpoczęcie przebiegu dla wsi: %s" % self.game_data["village"]["name"],
                     )
+                except Exception as e:
+                    self.logger.debug("Nie udało się zaraportować startu: %s", e)
+            else:
+                self.logger.warning(
+                    "Nie udało się odczytać stanu gry dla wsi %s (game_data=%s)",
+                    self.village_id, type(self.game_data).__name__,
+                )
+        # POPRAWIONE: guard przed KeyError gdy game_data jest None lub niekompletne
         if (
-                self.village_set_name
-                and self.game_data["village"]["name"] != self.village_set_name
+            self.village_set_name
+            and self.game_data
+            and isinstance(self.game_data, dict)
+            and "village" in self.game_data
+            and self.game_data["village"].get("name") != self.village_set_name
         ):
             self.logger.name = f"Village {self.village_set_name}"
         return data
@@ -311,9 +333,12 @@ class Village:
         """
         Używa szlachcica do tworzenia monet, przechowywania zasobów i rekrutacji szlachty
         """
+        # POPRAWIONE: używamy get_level() zamiast bezpośredniego indeksowania levels["snob"],
+        # aby uniknąć KeyError gdy brak akademii (snob nie ma wpisu w levels)
         if (
                 self.get_village_config(self.village_id, parameter="snobs", default=None)
-                and self.builder.levels["snob"] > 0
+                and self.builder
+                and self.builder.get_level("snob") > 0
         ):
             if not self.snobman:
                 self.snobman = SnobManager(

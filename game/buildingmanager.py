@@ -64,7 +64,18 @@ class BuildingManager:
         """
         main_data = self.wrapper.get_action(village_id=self.village_id, action="main")
         self.game_state = Extractor.game_state(main_data)
-        vname = self.game_state["village"]["name"]
+        # POPRAWIONE: bezpieczny dostęp do game_state - nie crash gdy Extraction zawiedzie
+        if not self.game_state or not isinstance(self.game_state, dict) or "village" not in self.game_state:
+            if not self.logger:
+                self.logger = logging.getLogger(
+                    f"Builder: village_{self.village_id}"
+                )
+            self.logger.warning(
+                "Nie udało się odczytać stanu gry (game_state=%s) dla wsi %s, pomijam start_update",
+                type(self.game_state).__name__, self.village_id,
+            )
+            return False
+        vname = self.game_state["village"].get("name", self.village_id)
 
         if not self.logger:
             self.logger = logging.getLogger(fr"Builder: {vname}")

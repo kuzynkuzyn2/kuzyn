@@ -27,13 +27,68 @@ class Extractor:
     def game_state(res):
         """
         Wykrywa stan gry dostepny na większości stron
+
+        POPRAWIONE:
+        - Dodany flag DOTALL, aby wyrażenie obejmowało też znaki nowej linii
+        - Dopasowanie śledzi poziom zagnieżdżenia nawiasów, więc nie zatrzymuje się
+          na pierwszym ')' który może wystąpić wewnątrz stringu JSON
+        - Zwraca None gdy brak dopasowania (zamiast wywoływać AttributeError)
         """
         if type(res) != str:
             res = res.text
-        grabber = re.search(r'TribalWars\.updateGameData\((.+?)\);', res)
-        if grabber:
-            data = grabber.group(1)
-            return json.loads(data, strict=False)
+        if not res:
+            return None
+
+        match = re.search(r'TribalWars\.updateGameData\(', res)
+        if not match:
+            return None
+
+        # Znajdź odpowiadający ')' uwzględniając zagnieżdżone nawiasy w JSON.
+        start = match.end()
+        depth = 1
+        i = start
+        in_str = False
+        esc = False
+        while i < len(res):
+            ch = res[i]
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == '\\':
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+            else:
+                if ch == '"':
+                    in_str = True
+                elif ch == '(':
+                    depth += 1
+                elif ch == ')':
+                    depth -= 1
+                    if depth == 0:
+                        # znaleziono odpowiadający ')' — wyciągnij JSON
+                        json_text = res[start:i]
+                        try:
+                            return json.loads(json_text, strict=False)
+                        except (ValueError, json.JSONDecodeError) as e:
+                            # Fallback: spróbuj bardziej agresywny regex
+                            fallback = re.search(
+                                r'(?s)TribalWars\.updateGameData\(\s*(.+?)\s*\)\s*;',
+                                res,
+                            )
+                            if fallback:
+                                try:
+                                    return json.loads(fallback.group(1), strict=False)
+                                except Exception:
+                                    pass
+                            # Nie udało się sparsować — zwróć None, nie crashuj
+                            import logging
+                            logging.getLogger("Extractor").debug(
+                                "Błąd parsowania game_state JSON: %s", e
+                            )
+                            return None
+            i += 1
+        return None
 
     @staticmethod
     def building_data(res):
