@@ -119,8 +119,11 @@ class DefenceManager:
         if to_hide and len(self.my_other_villages) == 1:
             # powodzenia ;)
             return False
-        for v_obj in self.my_other_villages:
-            vid, attack_state = v_obj
+        # POPRAWIONE: traktujemy my_other_villages jako dict {village_id: attack_state}
+        # zamiast listy krotek [(village_id, attack_state), ...]
+        for vid, attack_state in (self.my_other_villages.items()
+                                  if isinstance(self.my_other_villages, dict)
+                                  else self.my_other_villages):
             if vid == self.village_id:
                 continue
             if not attack_state:

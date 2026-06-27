@@ -193,18 +193,27 @@ class Village:
         self.last_attack = self.def_man.under_attack
 
     def run_quest_actions(self, config):
+        """
+        Sprawdza zadania klanowe (quest). NIE wywołuje rekurencyjnie self.run(),
+        aby uniknąć nieskończonej rekurencji gdyby get_quests() zwracał True w kółko.
+        Zamiast tego ustawia flagę _quest_pending — cykl run() ponownego wywołania
+        zarządza nadrzędną pętlą w twb.py.
+        """
         if self.get_config(section="world", parameter="quests_enabled", default=False):
             if self.get_quests():
-                self.logger.info("Były ukończone zadania, ponowne uruchomienie funkcji")
+                self.logger.info("Były ukończone zadania, cykl zostanie powtórzony")
                 self.wrapper.reporter.report(
                     self.village_id, "TWB_QUEST", "Ukończono zadanie"
                 )
-                return self.run(config=config)
+                # Zwracamy True — nadrzędna pętla może ponowić cykl dla tej wioski.
+                # NIE wywołujemy self.run() tutaj, by uniknąć nieskończonej rekurencji.
+                return True
 
             if self.get_quest_rewards():
                 self.wrapper.reporter.report(
                     self.village_id, "TWB_QUEST", " Zebrano nagrody za zadania"
                 )
+        return False
 
     def units_get_template(self):
         """
@@ -594,10 +603,126 @@ class Village:
                 )
             )
 
+    def run(self, config=None):
+        """
+        Główna metoda cyklu wioski — wykonuje wszystkie akcje dla pojedynczej wioski.
+        Wywoływana przez twb.py dla każdej wioski w każdym cyklu.
+        """
+        if config is not None:
+            self.config = config
+        if not self.config:
+            self.logger.error("Brak konfiguracji dla wsi %s, pomijam", self.village_id)
+            return False
+
+        # 1. Inicjalizacja i pobranie stanu gry
+        data = self.village_init()
+        if not self.game_data:
+            self.logger.error(
+                "Błąd odczytu danych gry dla wsi %s", self.village_id
+            )
+            raise VillageInitException
+
+        # 2. Ustaw opcje świata
+        self.set_world_config()
+
+        # 3. Sprawdź, czy wioska istnieje w konfiguracji
+        if not self.get_config(section="villages", parameter=self.village_id):
+            self.logger.warning(
+                "Wieś %s nie ma wpisu w config.json, pomijam", self.village_id
+            )
+            return False
+
+        vdata = self.get_village_config(
+            self.village_id, parameter="managed", default=True
+        )
+        if not vdata:
+            self.logger.info("Wieś %s nie jest zarządzana (managed=false)", self.village_id)
+            return False
+
+        # 4. Ustaw delay wrappera
+        self.wrapper.delay = self.get_config(
+            section="bot", parameter="delay_factor", default=1.0
+        )
+
+        # 5. Zarządzanie wstępne (zasoby, obrona)
+        self.update_pre_run()
+
+        # 6. Konfiguracja managera obrony
+        self.setup_defence_manager(data=data)
+
+        # 7. Zadania (quest) — BEZ rekurencyjnego wywołania self.run()
+        try:
+            self.run_quest_actions(config=config)
+        except RecursionError:
+            self.logger.warning("Zbyt wiele wywołań quest, pomijam dalsze")
+
+        # 8. Budowanie
+        self.run_builder()
+
+        # 9. Szablon jednostek i poziomy
+        self.units_get_template()
+        self.set_unit_wanted_levels()
+
+        # 10. Aktualizacja wojsk
+        self.units.update_totals()
+        self.run_unit_upgrades()
+        self.run_snob_recruit()
+        self.do_recruit()
+        self.manage_local_resources()
+
+        # 11. Opcje farmienia i farma
+        try:
+            self.set_farm_options()
+        except Exception as e:
+            self.logger.debug("Błąd konfiguracji farmy dla wsi %s: %s", self.village_id, e)
+        self.run_farming()
+
+        # 12. Zbieranie surowców (gather)
+        self.do_gather()
+
+        # 13. Zarządzanie rynkiem (market)
+        self.go_manage_market()
+
+        # 14. Zapis cache i raporty
+        self.set_cache_vars()
+        self.logger.info("Cykl wsi zakończony, powrót do przeglądu")
+        try:
+            self.wrapper.reporter.report(
+                self.village_id, "TWB_POST_RESOURCE", str(self.resman.actual)
+            )
+            self.wrapper.reporter.add_data(
+                self.village_id,
+                data_type="village.resources",
+                data=json.dumps(self.resman.actual),
+            )
+            if self.builder:
+                self.wrapper.reporter.add_data(
+                    self.village_id,
+                    data_type="village.buildings",
+                    data=json.dumps(self.builder.levels),
+                )
+            if self.units:
+                self.wrapper.reporter.add_data(
+                    self.village_id,
+                    data_type="village.troops",
+                    data=json.dumps(self.units.total_troops),
+                )
+            self.wrapper.reporter.add_data(
+                self.village_id, data_type="village.config",
+                data=json.dumps(self.config["villages"].get(self.village_id, {}))
+            )
+        except Exception as e:
+            self.logger.debug("Błąd raportowania dla wsi %s: %s", self.village_id, e)
+
+        return True
+
     def go_manage_market(self):
         """
-        Zarządza rynkiem
+        Zarządza rynkiem — wyłącznie obsługa rynku (market place), bez duplikowania logiki run().
         """
+        if not self.builder:
+            self.logger.debug("Brak managera budynków, pomijam zarządzanie rynkiem")
+            return
         if self.get_config(
                 section="market", parameter="auto_trade", default=False
         ) and self.builder.get_level("market"):
@@ -619,85 +744,6 @@ class Village:
                     section="market", parameter="auto_remove", default=True
                 )
             )
-
-        res = self.wrapper.get_action(village_id=self.village_id, action="overview")
-        self.game_data = Extractor.game_state(res)
-        self.resman.update(self.game_data)
-        self.config = config
-        self.wrapper.delay = self.get_config(
-            section="bot", parameter="delay_factor", default=1.0
-        )
-
-        data = self.village_init()
-
-        if not self.game_data:
-            self.logger.error(
-                "Błąd odczytu danych gry dla wsi %s", self.village_id
-            )
-            raise VillageInitException
-
-        self.set_world_config()
-
-        if not self.get_config(section="villages", parameter=self.village_id):
-            raise VillageInitException
-
-        vdata = self.get_config(section="villages", parameter=self.village_id)
-        if not self.get_village_config(
-                self.village_id, parameter="managed", default=False
-        ):
-            return False
-        if not self.game_data:
-            raise InvalidGameStateException
-
-        self.update_pre_run()
-
-        self.setup_defence_manager(data=data)
-        self.run_quest_actions(config=config)
-
-        self.run_builder()
-        self.units_get_template()
-        self.set_unit_wanted_levels()
-
-        self.units.update_totals()
-        self.run_unit_upgrades()
-        self.run_snob_recruit()
-        self.do_recruit()
-        self.manage_local_resources()
-
-        # ensure farm options are configured for this village before running farming
-        try:
-            self.set_farm_options()
-        except Exception:
-            self.logger.debug("Error setting farm options for village %s", self.village_id)
-
-        self.run_farming()
-
-        self.do_gather()
-        self.go_manage_market()
-
-        self.set_cache_vars()
-        self.logger.info("Cykl wsi zakończony, powrót do przeglądu")
-        self.wrapper.reporter.report(
-            self.village_id, "TWB_POST_RESOURCE", str(self.resman.actual)
-        )
-        self.wrapper.reporter.add_data(
-            self.village_id,
-            data_type="village.resources",
-            data=json.dumps(self.resman.actual),
-        )
-        self.wrapper.reporter.add_data(
-            self.village_id,
-            data_type="village.buildings",
-            data=json.dumps(self.builder.levels),
-        )
-        self.wrapper.reporter.add_data(
-            self.village_id,
-            data_type="village.troops",
-            data=json.dumps(self.units.total_troops),
-        )
-        self.wrapper.reporter.add_data(
-            self.village_id, data_type="village.config", data=json.dumps(vdata)
-        )
 
     def get_quests(self):
         result = Extractor.get_quests(self.wrapper.last_response)
@@ -753,7 +799,7 @@ class Village:
             "resources": self.resman.actual,
             "required_resources": self.resman.requested,
             "available_troops": self.units.troops,
-            "buidling_levels": self.builder.levels,
+            "building_levels": self.builder.levels,
             "building_queue": self.builder.queue,
             "troops": self.units.total_troops,
             "under_attack": self.def_man.under_attack,

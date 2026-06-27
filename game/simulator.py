@@ -345,14 +345,22 @@ class Simulator:
         wallDefense = 0
         if resultingWall != 0:
             wallDefense = round(math.pow(1.25, resultingWall) * 20)
-        while self.get_sum(attackerUnits) >= 1 and self.get_sum(defenderUnits) >= 1:
+        # Zabezpieczenie przed nieskończoną pętlą (np. gdyby morale/luck dawały wartości skrajne)
+        max_iterations = 10000
+        iteration = 0
+        while (self.get_sum(attackerUnits) >= 1 and self.get_sum(defenderUnits) >= 1
+               and iteration < max_iterations):
+            iteration += 1
             attack_strength = self.attack_sum(attackerUnits)
             def_strength = self.defense_sum(defenderUnits)
             attack_sum = self.get_sum(attackerUnits)
 
             attackFood = self.attack_sum_food(attackerUnits)
             attackFoodSum = self.get_sum(attackFood)
-            print(attackFood, attackFoodSum)
+            if attackFoodSum == 0:
+                # Brak jednostek z atrybutem food (np. snob) — nie można podzielić ataku,
+                # traktujemy cały atak jako jedną całość
+                attackFoodSum = 1
             defenderUnitsCopy = dict()
 
             for unit in defenderUnits:
@@ -362,7 +370,8 @@ class Simulator:
                 if attack_strength[attackType] == 0:
                     continue
 
-                ratio = attackFood[attackType] / attackFoodSum
+                # Zabezpieczenie przed ZeroDivisionError, gdy atakFood[attackType]==0
+                ratio = (attackFood[attackType] / attackFoodSum) if attackFoodSum else 0
                 defense = (
                         def_strength[attackType.replace("attack", "defense")]
                         * ratio
@@ -370,21 +379,28 @@ class Simulator:
                         * nightbonus
                         + wallDefense * ratio
                 )
+                if defense == 0:
+                    continue
                 a = attack_strength[attackType] * moral * luck / defense
                 if a < 1:
                     c = math.sqrt(a) * a
                     for unit in defenderUnits:
                         defenderUnits[unit] -= defenderUnitsCopy[unit] * c * ratio
-                    for i in self.attack_units[attackType]:
-                        unit = self.attack_units[attackType][i]
+                    # POPRAWIONE: iterujemy po liście jednostek danego typu ataku bezpośrednio,
+                    # nie używamy listy jako indeksu drugiego stopnia
+                    for unit in self.attack_units[attackType]:
                         attackerUnits[unit] = 0
                 else:
                     c = math.sqrt(1 / a) / a
                     for unit in defenderUnits:
                         defenderUnits[unit] -= ratio * defenderUnitsCopy[unit]
-                    for i in self.attack_units[attackType]:
-                        unit = i
+                    # POPRAWIONE: iterujemy po liście jednostek danego typu ataku bezpośrednio
+                    for unit in self.attack_units[attackType]:
                         attackerUnits[unit] -= c * attackerUnits[unit]
+                    # Zabezpieczenie przed ujemnymi wartościami
+                    for unit in self.attack_units[attackType]:
+                        if attackerUnits[unit] < 0:
+                            attackerUnits[unit] = 0
 
         for unit in self.pool:
             attacker["losses"][unit] = attacker["quantity"][unit] - round(
@@ -418,13 +434,30 @@ class SimCache:
         if current:
             return current
         result = session.get_action(village_id=village_id, action="unit_info&ajax=data")
-        if result:
-            SimCache.set_cache(world=world, entry=result.json())
+        if not result:
+            return None
+        try:
+            data = result.json()
+        except Exception:
+            return None
+        if data:
+            SimCache.set_cache(world=world, entry=data)
+            return data
+        return None
 
     @staticmethod
     def cache_customize(entry):
         if not entry:
             return {}
 
+        # Zabezpieczenie przed KeyError gdy brakuje oczekiwanej struktury
+        if "response" not in entry or "unit_data" not in entry.get("response", {}):
+            return {}
+
+        output = {}
         for unit in entry["response"]["unit_data"]:
-            return
+            if isinstance(unit, dict):
+                output[unit.get("name", "unknown")] = unit
+            else:
+                output[str(unit)] = unit
+        return output

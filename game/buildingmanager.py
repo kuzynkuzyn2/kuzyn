@@ -186,45 +186,58 @@ class BuildingManager:
         """
         Sprawdza, czy jest wystarczająco zasobów, aby zakolejkować budynek
         """
-        if (
-                build_item["iron"] > self.resman.storage
-                or build_item["wood"] > self.resman.storage
-                or build_item["stone"] > self.resman.storage
-        ):
-            build_data = "storage:%d" % (int(self.levels["storage"]) + 1)
+        # Zabezpieczenie przed KeyError, gdy build_item nie ma oczekiwanych kluczy
+        try:
+            storage_level = int(self.levels.get("storage", 0))
+            # POPRAWIONE: zabezpieczenie przed nieskończonym wstawianiem storage do kolejki
+            # Sprawdzamy czy storage nie został już wstawiony na początku kolejki.
             if (
-                    len(self.queue)
-                    and "storage"
-                    not in [x.split(":")[0] for x in self.queue[0: self.max_lookahead]]
-                    and int(self.levels["storage"]) != 30
+                    build_item.get("iron", 0) > self.resman.storage
+                    or build_item.get("wood", 0) > self.resman.storage
+                    or build_item.get("stone", 0) > self.resman.storage
             ):
-                self.queue.insert(0, build_data)
-                self.logger.info(
-                    "Dodawanie magazynu na początek kolejki, ponieważ element kolejki przekracza pojemność magazynu"
-                )
+                build_data = "storage:%d" % (storage_level + 1)
+                if (
+                        len(self.queue)
+                        and "storage"
+                        not in [x.split(":")[0] for x in self.queue[0: self.max_lookahead]]
+                        and storage_level != 30
+                ):
+                    self.queue.insert(0, build_data)
+                    self.logger.info(
+                        "Dodawanie magazynu na początek kolejki, ponieważ element kolejki przekracza pojemność magazynu"
+                    )
+                    # Zamiast pozwalać na kontynuowanie, zwracamy False — niech get_next_building_action
+                    # obsłuży wstawiony storage w następnej iteracji
+                    return False
+        except Exception as e:
+            self.logger.debug("Błąd w has_enough storage check: %s", e)
 
         r = True
-        if build_item["wood"] > self.game_state["village"]["wood"]:
-            req = build_item["wood"] - self.game_state["village"]["wood"]
-            self.resman.request(source="building", resource="wood", amount=req)
-            r = False
-        if build_item["stone"] > self.game_state["village"]["stone"]:
-            req = build_item["stone"] - self.game_state["village"]["stone"]
-            self.resman.request(source="building", resource="stone", amount=req)
-            r = False
-        if build_item["iron"] > self.game_state["village"]["iron"]:
-            req = build_item["iron"] - self.game_state["village"]["iron"]
-            self.resman.request(source="building", resource="iron", amount=req)
-            r = False
-        if build_item["pop"] > (
-                self.game_state["village"]["pop_max"] - self.game_state["village"]["pop"]
-        ):
-            req = build_item["pop"] - (
-                    self.game_state["village"]["pop_max"]
-                    - self.game_state["village"]["pop"]
-            )
-            self.resman.request(source="building", resource="pop", amount=req)
-            r = False
+        try:
+            village = self.game_state["village"]
+            if build_item.get("wood", 0) > village.get("wood", 0):
+                req = build_item["wood"] - village["wood"]
+                self.resman.request(source="building", resource="wood", amount=req)
+                r = False
+            if build_item.get("stone", 0) > village.get("stone", 0):
+                req = build_item["stone"] - village["stone"]
+                self.resman.request(source="building", resource="stone", amount=req)
+                r = False
+            if build_item.get("iron", 0) > village.get("iron", 0):
+                req = build_item["iron"] - village["iron"]
+                self.resman.request(source="building", resource="iron", amount=req)
+                r = False
+            pop_cost = build_item.get("pop", 0)
+            pop_avail = village.get("pop_max", 0) - village.get("pop", 0)
+            if pop_cost > pop_avail:
+                req = pop_cost - pop_avail
+                self.resman.request(source="building", resource="pop", amount=req)
+                r = False
+        except Exception as e:
+            self.logger.debug("Błąd w has_enough resource check: %s", e)
+            return False
+
         if not r:
             self.logger.info(
                 "Niewystarczające zasoby do budowy, żądane aktualizacje: %s",

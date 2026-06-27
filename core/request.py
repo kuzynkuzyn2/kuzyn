@@ -61,7 +61,7 @@ class WebWrapper:
         if get_h:
             self.last_h = get_h.group(1)
 
-    def get_url(self, url, headers=None):
+    def get_url(self, url, headers=None, _captcha_retries=0):
         """
         Pobiera adres URL za pomocą podstawowego żądania GET
         """
@@ -76,13 +76,35 @@ class WebWrapper:
             self.logger.debug("GET %s [%d]", url, res.status_code)
             self.post_process(res)
             if 'data-bot-protect="forced"' in res.text:
-                self.logger.warning("Ochrona przed botami uruchomiona! nie można kontynuować")
-                self.reporter.report(
-                    0, "TWB_RECAPTCHA", "Zatrzymywanie bota, naciśnij dowolny klawisz po rozwiązaniu captchy")
-                Notification.send("Ochrona przed botami uruchomiona! nie można kontynuować")
-                print("Naciśnij dowolny klawisz...")
-                input()
-                return self.get_url(url, headers)
+                # Ogranicz liczbę prób, aby uniknąć nieskończonej rekurencji
+                max_captcha_retries = 3
+                if _captcha_retries >= max_captcha_retries:
+                    self.logger.error(
+                        "Ochrona przed botami nadal aktywna po %d próbach, przerywam",
+                        max_captcha_retries,
+                    )
+                    return res
+                self.logger.warning(
+                    "Ochrona przed botami uruchomiona! próba %d/%d",
+                    _captcha_retries + 1, max_captcha_retries,
+                )
+                try:
+                    self.reporter.report(
+                        0, "TWB_RECAPTCHA",
+                        "Zatrzymywanie bota, naciśnij dowolny klawisz po rozwiązaniu captchy",
+                    )
+                except Exception:
+                    pass
+                try:
+                    Notification.send("Ochrona przed botami uruchomiona! nie można kontynuować")
+                except Exception:
+                    pass
+                try:
+                    print("Naciśnij dowolny klawisz...")
+                    input()
+                except (EOFError, KeyboardInterrupt):
+                    return res
+                return self.get_url(url, headers, _captcha_retries=_captcha_retries + 1)
             return res
         except Exception as e:
             self.logger.warning("GET %s: %s", url, str(e))
@@ -181,11 +203,12 @@ class WebWrapper:
         payload = f"game.php?{urlencode(req)}"
         url = urljoin(self.endpoint, payload)
         res = self.get_url(url, headers=custom)
-        if res.status_code == 200:
+        if res is not None and getattr(res, 'status_code', None) == 200:
             try:
                 return res.json()
-            except:
+            except Exception:
                 return res
+        return None
 
     def post_api_data(self, village_id, action, params={}, data={}):
         """
@@ -206,11 +229,12 @@ class WebWrapper:
         if 'h' not in data:
             data['h'] = self.last_h
         res = self.post_url(url, data=data, headers=custom)
-        if res.status_code == 200:
+        if res is not None and getattr(res, 'status_code', None) == 200:
             try:
                 return res.json()
-            except:
+            except Exception:
                 return res
+        return None
 
     def get_api_action(self, village_id, action, params={}, data={}):
         """
@@ -231,9 +255,9 @@ class WebWrapper:
         if 'h' not in data:
             data['h'] = self.last_h
         res = self.post_url(url, data=data, headers=custom)
-        if res.status_code == 200:
+        if res is not None and getattr(res, 'status_code', None) == 200:
             try:
                 return res.json()
-            except:
+            except Exception:
                 return res
         return None

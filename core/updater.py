@@ -26,14 +26,30 @@ def check_update():
         "config.json"
     )
     if os.path.exists(get_local_config_version):
-        with open(get_local_config_version, "r", encoding="utf-8") as running_cf:
-            parsed = json.load(fp=running_cf)
-            if not parsed["bot"].get("check_update", False):
-                return
-    with open(get_local_config_template_version, "r", encoding="utf-8") as local_cf:
-        parsed = json.load(fp=local_cf)
+        try:
+            with open(get_local_config_version, "r", encoding="utf-8") as running_cf:
+                parsed = json.load(fp=running_cf)
+                if not parsed.get("bot", {}).get("check_update", False):
+                    return
+        except Exception as e:
+            logging.debug("Nie można wczytać config.json: %s", e)
+            return
+
+    if not os.path.exists(get_local_config_template_version):
+        return
+
+    try:
+        with open(get_local_config_template_version, "r", encoding="utf-8") as local_cf:
+            parsed = json.load(fp=local_cf)
+    except Exception as e:
+        logging.debug("Nie można wczytać config.example.json: %s", e)
+        return
+
+    # Sprawdź aktualizację z tolerancją na brak internetu
+    try:
         get_remote_version = requests.get(
-            "https://raw.githubusercontent.com/stefan2200/TWB/master/config.example.json"
+            "https://raw.githubusercontent.com/stefan2200/TWB/master/config.example.json",
+            timeout=(10, 30),
         ).json()
         if parsed["build"]["version"] != get_remote_version["build"]["version"]:
             logging.warning(
@@ -44,3 +60,5 @@ def check_update():
             time.sleep(5)
         else:
             logging.info("Bot jest aktualny")
+    except (requests.RequestException, ValueError, KeyError) as e:
+        logging.debug("Nie udało się sprawdzić aktualizacji (brak internetu?): %s", e)

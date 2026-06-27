@@ -70,7 +70,7 @@
     "support_others_max_villages": 2,
     "request_support_on_attack": false
   },
-  
+
   "farm_assistant": {
     "enabled": true,
     "min_points": 0,
@@ -85,6 +85,8 @@
     "force_scout_if_available": true,
     "forced_peace_times": [],
     "farm_scout_amount": 5,
+    "auto_send_assistant_attacks": false,
+    "farm_assistant_rules": [],
     "farm_assistant_rule_A_field": "none",
     "farm_assistant_rule_A_op": "none",
     "farm_assistant_rule_A_value": 0,

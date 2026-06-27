@@ -18,6 +18,16 @@ class Hunter:
     # start timing 2m before attack start
     window = 120
     logger = logging.getLogger("Hunter")
+
+    def __init__(self, wrapper=None, village_id=None):
+        """
+        Inicjalizuje Hunter z wrapperem i village_id, aby metody attack()/prepare()
+        nie wyrzucały AttributeError gdy używają self.wrapper / self.village_id.
+        """
+        self.wrapper = wrapper
+        self.village_id = village_id
+        self.map = None
+        self.game_map = None
     """
     atak 1: wieś 2: {axe: 12500, light: 1250, ram:100} 2000 sek
     atak 2: wieś 1: {axe: 7500, light: 2000, snob: 1} 4300 sek

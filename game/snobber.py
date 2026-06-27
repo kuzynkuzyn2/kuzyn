@@ -171,11 +171,16 @@ class SnobManager:
             return False
         if self.building_level == 0:
             return False
-        if self.wanted > 0:
-            if "snob" not in self.troop_manager.total_troops:
-                return self.attempt_recruit(amount=self.wanted)
+        if self.wanted <= 0:
+            return False
+        if self.troop_manager is None:
+            self.logger.debug("Brak troop_manager, pomijam rekrutację szlachty")
+            return False
+        if "snob" not in self.troop_manager.total_troops:
+            return self.attempt_recruit(amount=self.wanted)
 
-            current = int(self.troop_manager.total_troops["snob"])
-            if current < self.wanted:
-                return self.attempt_recruit(amount=self.wanted - current)
-            self.logger.info("Szlachta aktualna (%d/%d)", current, self.wanted)
+        current = int(self.troop_manager.total_troops["snob"])
+        if current < self.wanted:
+            return self.attempt_recruit(amount=self.wanted - current)
+        self.logger.info("Szlachta aktualna (%d/%d)", current, self.wanted)
+        return False

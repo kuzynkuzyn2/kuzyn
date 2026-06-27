@@ -145,7 +145,8 @@ class Extractor:
         # We get the start of the table and grab the 2nd row (Where "From this village" troops are located)
         if matches:
             table_content = matches.group(1)
-            unit_matches = re.findall(r'class=\'unit-item unit-item-(.*?)\'[^>]*>(\d+)</td>', table_content)
+            # POPRAWIONE: cudzysłów " zamiast \' aby lepiej dopasować standardowy HTML TW
+            unit_matches = re.findall(r'class="unit-item unit-item-(.*?)"[^>]*>(\d+)</td>', table_content)
             # Find all the tuples (name, quantity) under the class "unit-item unit-item-*troop_name*"
             units = [(re.sub(r'\s*tooltip\s*', '', unit_name), unit_quantity) for unit_name, unit_quantity in
                      unit_matches if int(unit_quantity) > 0]
@@ -196,7 +197,9 @@ class Extractor:
             res = res.text
         # ukryj jednostki z innych wiosek
         res = re.sub(r'(?s)<span class="village_anchor.+?</tr>', '', res)
-        data = re.findall(r'(?s)class=\Wunit-item unit-item-([a-z]+)\W.+?(\d+)</td>', res)
+        # POPRAWIONE: używamy cudzysłowu " zamiast \W (dowolny znak nie-alfanumeryczny),
+        # aby uniknąć fałszywych dopasowań np. class="xunit-item..."
+        data = re.findall(r'(?s)class="unit-item unit-item-([a-z]+)".+?(\d+)</td>', res)
         return data
 
     @staticmethod
@@ -514,8 +517,13 @@ class Extractor:
         if type(res) != str:
             res = res.text
         get_daily = re.search(r'DailyBonus.init\((\s+\{.*\}),', res)
-        res = json.loads(get_daily.group(1))
-        reward_count_unlocked = str(res["reward_count_unlocked"])
-        if reward_count_unlocked and res["chests"][reward_count_unlocked]["is_collected"]:
+        if not get_daily:
+            return None
+        try:
+            parsed = json.loads(get_daily.group(1))
+        except (ValueError, json.JSONDecodeError):
+            return None
+        reward_count_unlocked = str(parsed.get("reward_count_unlocked"))
+        if reward_count_unlocked and parsed.get("chests", {}).get(reward_count_unlocked, {}).get("is_collected"):
             return reward_count_unlocked
         return None

@@ -414,10 +414,13 @@ class ResourceManager:
                 # sprawdź nadchodzące zasoby
                 url = f"game.php?village={self.village_id}&screen=market&mode=other_offer"
                 res = self.wrapper.get_url(url=url)
+                # Regex wielojęzyczny: wykrywa "Aankomend" (NL), "Incoming" (EN),
+                # "Eingehend" (DE), "En cours" (FR), "In arrivo" (IT), "Przychodzące" (PL).
                 p = re.compile(
-                    r"Aankomend:\s.+\"icon header (.+?)\".+?<\/span>(.+) ", re.M
+                    r"(?:Aankomend|Incoming|Eingehend|En\s+cours|In\s+arrivo|Przychodzące|Przychodzace|Wkraczające|Wkraczajace):\s.+\"icon\s+header\s+(.+?)\".+?<\/span>(.+) ",
+                    re.M | re.I,
                 )
-                incoming = p.findall(res.text)
+                incoming = p.findall(res.text) if res and getattr(res, 'text', None) else []
                 resource_incoming = {}
                 if incoming:
                     resource_incoming[incoming[0][0].strip()] = int(
@@ -473,8 +476,13 @@ class ResourceManager:
             r"(?:<!-- insert the offer -->\n+)\s+<tr>(.*?)<\/tr>", re.S | re.M
         )
         cur_off_tds = p.findall(res.text)
-        p = re.compile(r"Aankomend:\s.+\"icon header (.+?)\".+?<\/span>(.+) ", re.M)
-        incoming = p.findall(res.text)
+        # Regex wielojęzyczny dla tekstu "nadchodzące zasoby":
+        # NL=Aankomend, EN=Incoming, DE=Eingehend, FR=En cours, IT=In arrivo, PL=Przychodzące
+        p = re.compile(
+            r"(?:Aankomend|Incoming|Eingehend|En\s+cours|In\s+arrivo|Przychodzące|Przychodzace|Wkraczające|Wkraczajace):\s.+\"icon\s+header\s+(.+?)\".+?<\/span>(.+) ",
+            re.M | re.I,
+        )
+        incoming = p.findall(res.text) if res and getattr(res, 'text', None) else []
         resource_incoming = {}
         if incoming:
             resource_incoming[incoming[0][0].strip()] = int(

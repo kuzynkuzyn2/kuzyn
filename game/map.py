@@ -36,16 +36,22 @@ class Map:
         if self.last_fetch + (self.fetch_delay * 3600) > time.time():
             return
         self.last_fetch = time.time()
-        res = self.wrapper.get_action(village_id=self.village_id, action="map")
-        game_state = Extractor.game_state(res)
-        self.map_data = Extractor.map_data(res)
+        try:
+            res = self.wrapper.get_action(village_id=self.village_id, action="map")
+            if not res:
+                return False
+            game_state = Extractor.game_state(res)
+            self.map_data = Extractor.map_data(res)
+        except Exception as e:
+            logging.warning("Błąd pobierania mapy: %s", e)
+            return False
         if self.map_data:
             for tile in self.map_data:
                 data = tile["data"]
                 x = int(data["x"])
                 y = int(data["y"])
                 vdata = data["villages"]
-                # Napraw uszkodzone parsowanie                 
+                # Napraw uszkodzone parsowanie
                 if type(vdata) is dict:
                     cdata = [{}] * 20
                     for k, v in vdata.items():
@@ -96,8 +102,8 @@ class Map:
                                 self.my_location = coords
 
                             self.build_cache_entry(location=coords, entry=entry)
-                    except:
-                        raise
+                    except Exception:
+                        logging.debug("Błąd parsowania starej mapy dla wsi %s", self.village_id)
             if not self.my_location:
                 self.my_location = [
                     game_state["village"]["x"],
@@ -115,16 +121,24 @@ class Map:
         """
         Buduje wpis cache na podstawie ich dziwnej struktury danych
         """
-        vid = entry[0]
-        name = entry[2]
-        try:
-            points = int(entry[3].replace(".", ""))
-        except ValueError:
-            # Przerywa logikę farmienia na wioskach eventowych
+        # Zabezpieczenie przed IndexError, gdy entry ma za mało elementów (np. wioska eventowa)
+        if not entry or len(entry) < 12:
             return
-        player = entry[4]
-        bonus = entry[6]
-        clan = entry[11]
+        try:
+            vid = entry[0]
+            name = entry[2]
+            try:
+                points = int(entry[3].replace(".", ""))
+            except (ValueError, AttributeError):
+                # Przerywa logikę farmienia na wioskach eventowych
+                return
+            player = entry[4]
+            bonus = entry[6]
+            clan = entry[11]
+        except (IndexError, TypeError) as e:
+            logging.debug("Nieoczekiwana struktura entry w build_cache_entry: %s", e)
+            return
+
         structure = {
             "id": vid,
             "name": name,

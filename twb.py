@@ -355,7 +355,13 @@ class TWB:
         """
         active_h = [int(hour) for hour in config["bot"]["active_hours"].split("-")]
         get_h = time.localtime().tm_hour
-        return get_h in range(active_h[0], active_h[1])
+        # range() nie obejmuje ostatniej wartości, więc używamy inclusive z +1.
+        # Dla "6-23" chcemy godziny 6..23 włącznie. Obsługuje też wrap-around (np. "22-6").
+        start_h, end_h = active_h[0], active_h[1]
+        if start_h <= end_h:
+            return start_h <= get_h <= end_h
+        # wrap-around (np. noc 22-6)
+        return get_h >= start_h or get_h <= end_h
 
     def run(self):
         """
@@ -536,12 +542,24 @@ def main():
         try:
             t.start()
         except Exception as e:
-            t.wrapper.reporter.report(0, "TWB_EXCEPTION", str(e))
+            # Zabezpieczamy się na wypadek, gdyby t.wrapper nie został zainicjalizowany
+            # przed wystąpieniem wyjątku (np. błąd wczytywania konfiguracji)
+            try:
+                if getattr(t, "wrapper", None) is not None and getattr(t.wrapper, "reporter", None) is not None:
+                    t.wrapper.reporter.report(0, "TWB_EXCEPTION", str(e))
+            except Exception:
+                pass
             print("I crashed :(   %s" % str(e))
-            Notification.send("TWB crashed: %s" % str(e))
+            try:
+                Notification.send("TWB crashed: %s" % str(e))
+            except Exception:
+                pass
             traceback.print_exc()
 
-    Notification.send("TWB has crashed 3 times, exiting")
+    try:
+        Notification.send("TWB has crashed 3 times, exiting")
+    except Exception:
+        pass
 
 
 def self_config_test():

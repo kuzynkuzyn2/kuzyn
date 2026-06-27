@@ -40,8 +40,18 @@ class TwStats:
         """
         total = 0
         for b in buildings:
+            try:
+                level = int(buildings[str(b)])
+            except (KeyError, ValueError, TypeError):
+                continue
             if b in self.max_levels:
-                total += self.max_levels[b][buildings[str(b)]]
+                # POPRAWIONE: max_levels[b] jest int (maksymalny poziom budynku),
+                # więc porównujemy poziom z max_levels[b] zamiast indeksować dict[int]
+                if level >= self.max_levels[b]:
+                    # Już osiągnięto maks. - cała populacja tego budynku
+                    total += self.output.get(b, {}).get(self.max_levels[b], 0)
+                else:
+                    total += self.output.get(b, {}).get(level, 0)
         return total
 
     def get_building_data(self, world):
