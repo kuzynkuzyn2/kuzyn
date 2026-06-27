@@ -47,13 +47,17 @@ from core.extractors import Extractor
 from core.filemanager import FileManager
 
 LOGGER = logging.getLogger("DebugCycle")
-if not LOGGER.handlers:
+# Logger odziedziczy handlery z root loggera, więc wiadomości pojawią się
+# zarówno w konsoli stderr, jak i w webmanager (przez bot_log_handler).
+if not LOGGER.handlers and not LOGGER.parent.handlers:
     _handler = logging.StreamHandler()
     _handler.setFormatter(logging.Formatter(
         "%(asctime)s - [%(levelname)s] [%(name)s] - %(message)s"
     ))
     LOGGER.addHandler(_handler)
-    LOGGER.setLevel(logging.DEBUG)
+LOGGER.setLevel(logging.DEBUG)
+# Zapobiegaj podwójnemu logowaniu przez propagację
+LOGGER.propagate = True
 
 
 # Lista screen-ów do przetestowania w cyklu diagnostycznym
@@ -147,11 +151,27 @@ class DebugCycleRunner:
         # Konfiguracja managera raportowania błędów
         self._report = []
 
-    # ------------------------------------------------------------------
-    # Zapisywanie odpowiedzi HTTP
-    # ------------------------------------------------------------------
-    def _save_response(self, screen_name: str, response,
-                       extracted: Optional[Dict[str, Any]] = None) -> None:
+        # W trybie debug NIE czekamy 3-7s na każde żądanie HTTP.
+        # priority_mode pomija delay w wrapper.get_url/post_url.
+        # Zmiana jest widoczna dla wszystkich kolejnych requestów,
+        # dlatego przywracamy oryginalną wartość na końcu cyklu.
+        self._old_priority_mode = getattr(self.wrapper, "priority_mode", False)
+        self._old_delay = getattr(self.wrapper, "delay", 1.0)
+        try:
+            self.wrapper.priority_mode = True
+            if hasattr(self.wrapper, "delay"):
+                self.wrapper.delay = 0.0
+        except Exception:
+            LOGGER.warning("Nie udało się ustawić priority_mode na wrapperze", exc_info=True)
+
+    def __del__(self):
+        try:
+            if hasattr(self, "_old_priority_mode"):
+                self.wrapper.priority_mode = self._old_priority_mode
+            if hasattr(self, "_old_delay") and hasattr(self.wrapper, "delay"):
+                self.wrapper.delay = self._old_delay
+        except Exception:
+            pass
         """Zapisuje odpowiedź HTTP do pliku HTML i wyciąg JSON do pliku JSON."""
         if not self.save_responses or response is None:
             return
@@ -603,8 +623,13 @@ class DebugCycleRunner:
     # ------------------------------------------------------------------
     # Uruchomienie pełnego cyklu
     # ------------------------------------------------------------------
-    def run(self) -> Dict[str, Any]:
-        """Przeprowadza pełen cykl diagnostyczny. Zwraca raport."""
+    def run(self, on_phase_done=None) -> Dict[str, Any]:
+        """
+        Przeprowadza pełen cykl diagnostyczny. Zwraca raport.
+
+        :param on_phase_done: opcjonalny callback(label, result, progress_pct)
+                             wywoływany po zakończeniu każdej fazy.
+        """
         LOGGER.info("=" * 80)
         LOGGER.info("Rozpoczynam DEBUG CYCLE dla wioski %s", self.village_id)
         LOGGER.info("Tryb: %s", "DRY RUN" if self.dry_run else "LIVE")
@@ -624,8 +649,9 @@ class DebugCycleRunner:
             ("09_flags", self.phase_9_flags),
         ]
 
-        for label, phase_fn in phases:
-            LOGGER.info("--- Faza: %s ---", label)
+        total_phases = len(phases)
+        for idx, (label, phase_fn) in enumerate(phases):
+            LOGGER.info("--- Faza %d/%d: %s ---", idx + 1, total_phases, label)
             try:
                 result = phase_fn()
             except Exception as e:
@@ -637,8 +663,17 @@ class DebugCycleRunner:
             self.results.append(result)
             status = "OK" if result.success else "FAIL"
             LOGGER.info("[%s] %s: %s", status, result.name, result.message)
-            # Krótka pauza między fazami, żeby nie obciążać serwera
-            time.sleep(0.3)
+
+            # Callback dla UI - aktualizacja postępu w czasie rzeczywistym
+            if on_phase_done is not None:
+                try:
+                    progress_pct = int((idx + 1) * 100 / total_phases)
+                    on_phase_done(label, result, progress_pct)
+                except Exception as cb_err:
+                    LOGGER.warning("Błąd callback on_phase_done: %s", cb_err)
+
+            # Bardzo krótka pauza (delay został wyłączony w __init__)
+            time.sleep(0.05)
 
         self.end_time = datetime.utcnow().isoformat() + "Z"
         report_path = self._save_final_report()

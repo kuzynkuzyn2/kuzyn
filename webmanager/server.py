@@ -697,19 +697,29 @@ def _run_debug_cycle_async(village_ids, dry_run, save_responses):
                     save_responses=save_responses,
                     output_dir=output_dir,
                 )
-                report = runner.run()
+
+                def _update_phase_progress(label, result, progress_pct):
+                    """Callback wywoływany po każdej fazie cyklu."""
+                    try:
+                        # globalny postęp = (wioski_done + village_progress) / total
+                        base_pct = int(idx * 100 / max(len(village_ids), 1))
+                        village_share = int(100 / max(len(village_ids), 1))
+                        _debug_state["progress"] = base_pct + int(progress_pct * village_share / 100)
+                        _debug_state["current_phase"] = f"{vid} - {label}"
+                        _debug_state["completed_phases"] += 1
+                        _debug_state["results"].append({
+                            "village_id": str(vid),
+                            "phase": result.name,
+                            "success": result.success,
+                            "message": result.message,
+                            "details": result.details,
+                            "timestamp": result.timestamp,
+                        })
+                    except Exception:
+                        LOGGER.exception("Błąd w _update_phase_progress")
+
+                report = runner.run(on_phase_done=_update_phase_progress)
                 all_results.append(report)
-                # Aktualizuj stan
-                _debug_state["completed_phases"] += len(runner.results)
-                for r in runner.results:
-                    _debug_state["results"].append({
-                        "village_id": str(vid),
-                        "phase": r.name,
-                        "success": r.success,
-                        "message": r.message,
-                        "details": r.details,
-                        "timestamp": r.timestamp,
-                    })
             except Exception as e:
                 LOGGER.exception("Błąd cyklu dla wioski %s: %s", vid, e)
                 _debug_state["errors"].append({
@@ -743,15 +753,54 @@ def debug_start():
       - all: True/False - czy dla wszystkich wiosek z config.json (domyślnie True)
       - dry_run: True/False - bez prawdziwych POSTów
       - save_responses: True/False - czy zapisywać odpowiedzi HTTP (domyślnie True)
+      - force: True - wymusza restart nawet jeśli status to running (domyślnie False)
     """
     global _debug_state
+    data = request.get_json(silent=True) or {}
+    force = bool(data.get("force", False))
+
     with _debug_state["lock"]:
         if _debug_state["status"] == "running":
-            return jsonify({
-                "error": "Cykl debug już trwa",
-                "status": _debug_state["status"],
-                "started_at": _debug_state["started_at"],
-            }), 409
+            # Sprawdź, czy stan nie jest "zombie" (utknięty wątek)
+            stale = False
+            try:
+                if _debug_state["started_at"]:
+                    started_dt = datetime.fromisoformat(_debug_state["started_at"])
+                    age_min = (datetime.now() - started_dt).total_seconds() / 60.0
+                    if age_min > 15:
+                        stale = True
+                        LOGGER.warning(
+                            "Debug cycle oznaczony jako zombie (wiek: %.1f min), wymuszam reset",
+                            age_min,
+                        )
+            except Exception:
+                stale = True
+
+            if _debug_state["status"] == "running" and not stale and not force:
+                return jsonify({
+                    "error": "Cykl debug już trwa",
+                    "status": _debug_state["status"],
+                    "started_at": _debug_state["started_at"],
+                    "hint": "Użyj force=true aby wymusić restart lub wywołaj /debug/reset",
+                }), 409
+
+            # Zombie lub force=true - resetuj stan
+            LOGGER.warning("Resetuję stan debug cycle (stale=%s, force=%s)", stale, force)
+            _debug_state["status"] = "idle"
+            _debug_state["started_at"] = None
+            _debug_state["finished_at"] = None
+            _debug_state["current_village"] = None
+            _debug_state["current_phase"] = None
+            _debug_state["progress"] = 0
+            _debug_state["completed_phases"] = 0
+            _debug_state["total_phases"] = 0
+            _debug_state["results"] = []
+            _debug_state["errors"] = []
+
+        dry_run = bool(data.get("dry_run", False))
+        save_responses = bool(data.get("save_responses", True))
+        all_villages = bool(data.get("all", True))
+        single_vid = data.get("village_id")
 
         data = request.get_json(silent=True) or {}
         dry_run = bool(data.get("dry_run", False))
@@ -812,6 +861,33 @@ def debug_start():
             "started_at": _debug_state["started_at"],
             "output_dir": output_dir,
         })
+
+
+@app.route('/debug/reset', methods=['POST', 'GET'])
+def debug_reset():
+    """
+    Awaryjny reset stanu debug cycle (gdy utknął w statusie 'running').
+    NIE uruchamia nowego cyklu - tylko czyści stan.
+    """
+    global _debug_state
+    with _debug_state["lock"]:
+        old_status = _debug_state["status"]
+        _debug_state["status"] = "idle"
+        _debug_state["started_at"] = None
+        _debug_state["finished_at"] = None
+        _debug_state["current_village"] = None
+        _debug_state["current_phase"] = None
+        _debug_state["progress"] = 0
+        _debug_state["completed_phases"] = 0
+        _debug_state["total_phases"] = 0
+        _debug_state["results"] = []
+        _debug_state["errors"] = []
+    LOGGER.warning("Debug cycle zresetowany ręcznie (poprzedni status: %s)", old_status)
+    return jsonify({
+        "status": "reset",
+        "previous_status": old_status,
+        "message": "Stan wyczyszczony. Możesz ponownie uruchomić cykl.",
+    })
 
 
 @app.route('/debug/status', methods=['GET'])

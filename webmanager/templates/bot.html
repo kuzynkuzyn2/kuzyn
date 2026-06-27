@@ -35,6 +35,13 @@
                             title="Pokaz ostatnio zapisane pliki cyklu debug">
                         Pokaż pliki
                     </button>
+                    <button id="debug-cycle-reset"
+                            class="btn btn-sm"
+                            style="background:#8b1f1f; color:#fff; border:1px solid #6f1818; padding:6px 10px; margin-left:6px;"
+                            data-action="reset"
+                            title="Awaryjny reset stanu (gdy przycisk START nie reaguje)">
+                        RESET
+                    </button>
                     <div id="debug-cycle-status" style="margin-top:8px; font-family:monospace; font-size:12px;"></div>
                     <div id="debug-cycle-progress" style="margin-top:6px;">
                         <div style="background:#222; height:8px; border-radius:4px; overflow:hidden;">
@@ -494,7 +501,7 @@ $(function(){
             url: '/debug/start',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({village_id: null, dry_run: true, save_responses: true})
+            data: JSON.stringify({village_id: null, dry_run: true, save_responses: true, force: true})
         }).done(function(){
             if(_dcPollTimer) clearInterval(_dcPollTimer);
             _dcPollTimer = setInterval(pollDebugStatus, 1500);
@@ -502,6 +509,24 @@ $(function(){
         }).fail(function(xhr){
             btn.prop('disabled', false).text('START DEBUG CYCLE').removeAttr('data-running');
             setDebugStatus('Błąd uruchamiania: '+ (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.statusText), '#f87171');
+        });
+    });
+
+    $(document).on('click', '#debug-cycle-reset', function(){
+        var btn = $(this);
+        btn.prop('disabled', true);
+        $.ajax({
+            url: '/debug/reset',
+            method: 'POST'
+        }).done(function(data){
+            setDebugStatus('Zresetowano stan cyklu. Poprzedni status: '+ (data && data.previous_status ? data.previous_status : '?'), '#ffb347');
+            $('#debug-cycle-results').hide().html('');
+            setDebugProgress(0, '0%');
+            $('#debug-cycle-start').prop('disabled', false).text('START DEBUG CYCLE').removeAttr('data-running');
+        }).fail(function(xhr){
+            setDebugStatus('Błąd resetu: '+ (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.statusText), '#f87171');
+        }).always(function(){
+            btn.prop('disabled', false);
         });
     });
 
